@@ -39,13 +39,16 @@ Legend: ✅ done & tested · 🚧 in progress · ⬜ not started
 - [x] Deps added: `@react-pdf/renderer`, `react`, `react-dom`, `unpdf` (test), `arabic-persian-reshaper`
 - [x] `tsc --noEmit` clean; `vitest run` 39/39 green (render tests: HP-1/2/3, Letter media box, byte-stable re-render)
 
-## Phase 3 — Wizard & capture (NEXT)
-- [ ] `src/wizard/wizard.tsx` — 3-step shell (`useState<1|2|3>`, aria-current) mirror of generator-wizard
-- [ ] `step1-meta.tsx`, `step2-lines.tsx`, `step3-review.tsx`, `line-item-editor.tsx`, `totals-panel.tsx`
-- [ ] Step gating + inline field-level validation (AC-9); read-only computed cells (AC-5)
-- [ ] Add/reorder/delete renumbering (AC-10); 400-char wrap (AC-11)
-- [ ] `src/lib/storage.ts` — versioned localStorage draft + snapshot codec (FR-6, schemaVersion migration AC-13)
-- [ ] Routes: `app/page.tsx`, `app/new`, `app/settings`, `app/quotes`
+## Phase 3 — Wizard & capture ✅
+- [x] `src/wizard/wizard.tsx` — 3-step shell over `useReducer` (mirror of generator-wizard): `aria-current="step"` indicator (AC-7), debounced autosave, "Resume draft?"/corrupt-draft banners (HP-4 / AC-12 / EC-11)
+- [x] `src/wizard/state.ts` — pure reducer + per-step validators (Node-testable): AC-8 round-trip, AC-10 renumber-by-index, split-sums-to-100 gating (11 tests)
+- [x] `step1-meta.tsx`, `step2-lines.tsx`, `step3-review.tsx`, `line-item-editor.tsx`, `totals-panel.tsx`, `fields.tsx`
+- [x] Step gating + inline field-level validation, no `alert()`/`confirm()` (AC-9); computed cells read-only text everywhere (AC-5)
+- [x] Add/reorder/delete with contiguous renumbering (AC-10); descriptions wrap in the PDF table (AC-11, Phase-2 cell)
+- [x] `src/lib/storage.ts` — versioned localStorage draft + snapshot codec (FR-6): `quotegen:{draft,quotes,profile}:v1` keys, v0→v1 migration (AC-13), corrupt data decodes to null/[] (EC-11), clock/random-free (AC-28-safe); 17 tests
+- [x] Routes: `app/layout.tsx`, `app/page.tsx` (landing), `app/new`, `app/settings` (profile + factory reset, FR-5), `app/quotes` (open/duplicate/delete, FR-6.2)
+- [x] Download/Print reuse the Phase-2 path: `makeInput` + `renderToBlob` from `src/pdf/index.tsx`; preview is the real PDF via `<PDFViewer>`
+- [x] Deps: `next@16.4.3`, `tailwindcss@4` (+`@tailwindcss/postcss`), `next.config.ts` with `output: 'export'`; `next build` prerenders all 5 routes; 67/67 tests green
 
 ## Phase 4 — Eval harness & deploy (NEXT)
 - [ ] `src/eval/fixtures/*.json` — HP-1..HP-3, calc-oracle, hostile-text
@@ -56,8 +59,8 @@ Legend: ✅ done & tested · 🚧 in progress · ⬜ not started
 ---
 
 ## Deferred deliberately
-Phase 0–2 (repo, engine, PDF layer) are complete and green. The **wizard UI** (Phase 3)
-and **eval harness / Vercel deploy** (Phase 4) are the next steps. `next`/`tailwindcss`
-land with Phase 3 (the PDF layer renders headlessly via `@react-pdf/renderer` + Node
-tests, so the app shell isn't required yet); the `dev`/`build` scripts will only run once
-those deps exist.
+Phase 0–3 (repo, engine, PDF layer, wizard + storage + routes) are complete and green.
+Remaining: **Phase 4 — eval harness & deploy gates** (fixtures, `npm run eval`, static
+grep gates, Vercel deploy). `next build` already succeeds with `output: 'export'`;
+browser-level component tests (jsdom) were traded for pure-state unit tests over
+`wizard/state.ts` (same AC-8/9/10 coverage without a DOM stack).
