@@ -21,3 +21,6 @@ src/eval/out/
 # OS / editor
 .DS_Store
 *.log
+
+# Scratch (DOCX extraction for asset sourcing; never committed)
+.tmp/

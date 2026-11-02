@@ -28,14 +28,16 @@ Legend: ✅ done & tested · 🚧 in progress · ⬜ not started
 - [x] Unit tests: oracle 02 §4 (AC-1), float traps (AC-2), splits (AC-3), `formatSar` regex (AC-4), determinism (AC-6)
 - [x] `tsc --noEmit` clean; `vitest run` 34/34 green
 
-## Phase 2 — PDF layer (NEXT)
-- [ ] `src/pdf/theme.ts` — LETTER geometry (612×792, margins), colour tokens, font map (§1–§5)
-- [ ] `src/pdf/primitives.tsx` — Band, GoldRule, MetaTable, TotalsStack, Footer (§2, §3.4)
-- [ ] `src/pdf/quotation.tsx` — 2-page shape (§3): title strip, meta, table, totals, payment terms, T&Cs, closing
-- [ ] `src/pdf/proforma.tsx` — 1-page shape (§4): MODE OF PAYMENT, ACCOUNT DETAILS (RTL line), included cells, advance row
-- [ ] `src/pdf/index.ts` — `renderToBlob(doc, profile) → { blob, filename }` via `@react-pdf/renderer`
-- [ ] Brand assets: crop `header-mark.png` / `footer-mark.png` from DOCX `word/media`, `chevrons.svg`, bundle fonts (Arimo/Open Sans)
-- [ ] Add deps: `@react-pdf/renderer`, `next`, `react`, `react-dom`, `tailwindcss`
+## Phase 2 — PDF layer ✅
+- [x] `src/pdf/theme.ts` — LETTER geometry (612×792, margins top 122.4 / sides+bottom 72), colour tokens, font map + idempotent `registerFonts(resolver)` (§1–§5)
+- [x] `src/pdf/primitives.tsx` — ChevronMotif, HeaderBand, FooterBand, EntityBlock, MetaField, LineItemsTable (quotation/proforma variants), TotalsStack (§2, §3.4)
+- [x] `src/pdf/quotation.tsx` — 2-page shape (§3): title strip, meta, table, totals, payment terms, T&Cs, closing
+- [x] `src/pdf/proforma.tsx` — 1-page shape (§4): MODE OF PAYMENT, ACCOUNT DETAILS (RTL Arabic line), included cells, advance row
+- [x] `src/lib/rtl.ts` — deterministic Arabic presentation-form shaping (`arabic-persian-reshaper` + NotoSansArabic face) so the legal-name run renders joined/right-aligned, not tofu
+- [x] `src/pdf/index.tsx` — `buildElement`/`makeInput`/`filenameFor` + `renderToBlob` (browser) / `renderToBuffer` (Node, collects the PDF stream) via `@react-pdf/renderer`
+- [x] Brand assets: `header-mark.png` / `footer-mark.png` cropped from DOCX `word/media`; fonts bundled in `public/fonts` (Arimo, Open Sans, Noto Sans Arabic)
+- [x] Deps added: `@react-pdf/renderer`, `react`, `react-dom`, `unpdf` (test), `arabic-persian-reshaper`
+- [x] `tsc --noEmit` clean; `vitest run` 39/39 green (render tests: HP-1/2/3, Letter media box, byte-stable re-render)
 
 ## Phase 3 — Wizard & capture (NEXT)
 - [ ] `src/wizard/wizard.tsx` — 3-step shell (`useState<1|2|3>`, aria-current) mirror of generator-wizard
@@ -53,9 +55,9 @@ Legend: ✅ done & tested · 🚧 in progress · ⬜ not started
 
 ---
 
-## Deferred deliberately this session
-To keep the first increment coherent and green, the **PDF renderer, wizard UI and eval
-harness** are deferred to the next step (Phases 2–4). Only the engine dependencies
-(`zod`, `vitest`, `typescript`, `tsx`) are installed now; `@react-pdf/renderer`/`next`/
-`react`/`tailwindcss` land with Phase 2. The `dev`/`build` scripts are pre-declared but
-will only run once those deps exist.
+## Deferred deliberately
+Phase 0–2 (repo, engine, PDF layer) are complete and green. The **wizard UI** (Phase 3)
+and **eval harness / Vercel deploy** (Phase 4) are the next steps. `next`/`tailwindcss`
+land with Phase 3 (the PDF layer renders headlessly via `@react-pdf/renderer` + Node
+tests, so the app shell isn't required yet); the `dev`/`build` scripts will only run once
+those deps exist.
