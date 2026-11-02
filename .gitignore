@@ -1,0 +1,23 @@
+# Dependencies / build
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Vercel
+.vercel/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Test / coverage output
+coverage/
+src/eval/out/
+
+# OS / editor
+.DS_Store
+*.log
