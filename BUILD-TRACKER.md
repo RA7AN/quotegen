@@ -61,12 +61,20 @@ Legend: ✅ done & tested · 🚧 in progress · ⬜ not started
 
 ---
 
-## Deferred deliberately
-- **Human visual review (07 §3)** — open `src/eval/out/*.pdf` beside `Output-ref/` and mark
-  deviations; harness artifacts exist for all three happy paths + hostile text.
-- **HP-1..HP-4 walkthrough on the deployed Vercel URL** (07 §4) — build a preview/full
-  deploy when the visual review passes; zero-backend static host, no env needed.
-- Browser-level component tests (jsdom) traded for pure-state unit tests over
-  `wizard/state.ts` (same AC-8/9/10 coverage without a DOM stack).
-- `package.json` `"type": "module"` was required for the `tsx` harness (top-level await);
-  verified `next build`/`vitest` unaffected.
+## Deferred deliberately → GitHub milestone
+All post-Phase-4 work is scoped as issues under the **"Alpha hardening (post-Phase 4)"**
+milestone on `RA7AN/quotegen`, catalogued in
+[`Build-kit/08-milestone-backlog.md`](./Build-kit/08-milestone-backlog.md):
+
+- #1 — UAT, UX improvements & review fixes/alignments (**release-blocking**: 07 §3–4 visual
+  review, deployed-URL HP-1..HP-4 walkthrough, EC-1..EC-14 through the UI)
+- #2 — CI gate suite (tsc + vitest + `npm run eval` + next build on PR/push, 07 §2)
+- #3 — jsdom browser-level component tests (Phase-3 pure-state tradeoff)
+- #4 — Golden-file pixel regression for `calc.ts`/`pdf/*`/`theme.ts` changes (07 §5)
+- #5 — Settings brand-asset upload/replace (`quotegen:assets:v1`, FR-5 completeness)
+- #6 — Bank identity defaults + proforma blank-field advisory (03 §4)
+
+Browser-level component tests (jsdom) remain traded for pure-state unit tests over
+`wizard/state.ts` (same AC-8/9/10 coverage without a DOM stack) until #3 lands.
+`package.json` `"type": "module"` was required for the tsx harness (top-level await);
+`next build`/`vitest` verified unaffected.

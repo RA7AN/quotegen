@@ -13,6 +13,7 @@ post-build. Read this README first, then the numbered docs in order.
 | 05 | [05-acceptance-criteria.md](./05-acceptance-criteria.md) | Testable acceptance criteria (the eval rubric). |
 | 06 | [06-happy-paths-and-edge-cases.md](./06-happy-paths-and-edge-cases.md) | End-to-end happy paths and the edge/error cases that must not break determinism. |
 | 07 | [07-eval-plan.md](./07-eval-plan.md) | Post-build evaluation harness: fixtures, golden outputs, diffing, scoring. |
+| 08 | [08-milestone-backlog.md](./08-milestone-backlog.md) | Post-build addendum (alpha cut): remaining scoped work as GitHub issues under the "Alpha hardening" milestone. |
 
 ---
 
