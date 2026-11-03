@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "template": "quotation",
+  "meta": {
+    "docNo": "ENCM-178-26-6824",
+    "projectSegment": "178",
+    "quoteDateISO": "2026-10-17",
+    "validUntilISO": "2026-11-16",
+    "subject": "Supply of worktop for existing Kitchen Worktable",
+    "attn": "Mr Mithun"
+  },
+  "client": {
+    "name": "THE RED SEA COASTAL VILLAGE HOTEL (DRR)",
+    "addressLines": ["Al Umlaj"],
+    "custId": "0020TBH",
+    "city": "Al Umlaj",
+    "crNo": "4701102147"
+  },
+  "lines": [
+    {
+      "id": "hp1-l1",
+      "description": "Supply of White Marble top for work table - 220x90x2cm and Custom made SS304 Table bottom - 220x90x90cm",
+      "uom": "u",
+      "qtyHundredths": 100,
+      "unitPriceHalalas": 530000,
+      "pricing": "rated"
+    }
+  ],
+  "commercials": {
+    "discountMode": "none",
+    "discountValue": 0,
+    "vatBps": 1500,
+    "paymentTermsText": ["100% advance"],
+    "advanceSplits": []
+  },
+  "terms": {
+    "clauses": [
+      "Validity: This quotation is valid for 30 days from the date of issue.",
+      "Execution Time: Estimated Collection (Jeddah) within 10 days from PO and Advance Payment",
+      "Scope Variation Clause: Adding or cancelling any item(s) or scope of works covered in the BOQ may result in adjustment of unit rates of other related items, except for items explicitly quoted as optional."
+    ]
+  },
+  "closing": {
+    "signoff": "Best regards,",
+    "name": "Operations",
+    "org": "Encompass Design and Build",
+    "mobile": "+966 50 000 0000",
+    "email": "info@encompassgroupsa.com",
+    "website": "WWW.ENCOMPASSGROUPSA.COM"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "template": "quotation",
+  "meta": {
+    "docNo": "ENCM-26-6879",
+    "quoteDateISO": "2026-10-25",
+    "validUntilISO": "2026-11-24",
+    "subject": "Kidds Club Floor",
+    "attn": "Mr Mithun"
+  },
+  "client": {
+    "name": "Turtle Bay Hotel (TBH)",
+    "addressLines": ["Jeddah"],
+    "custId": "0020TBH",
+    "city": "Jeddah",
+    "crNo": "4701102147"
+  },
+  "lines": [
+    {
+      "id": "hp2-l1",
+      "description": "Supply and install Granite cladding for Kidds Club floor",
+      "uom": "u",
+      "qtyHundredths": 100,
+      "unitPriceHalalas": 1950000,
+      "pricing": "rated"
+    },
+    {
+      "id": "hp2-l2",
+      "description": "Metal skirting profile along floor perimeter",
+      "uom": "m",
+      "qtyHundredths": 5000,
+      "unitPriceHalalas": 110000,
+      "pricing": "rated"
+    }
+  ],
+  "commercials": {
+    "discountMode": "none",
+    "discountValue": 0,
+    "vatBps": 1500,
+    "paymentTermsText": ["70% advance", "30% on completion"],
+    "advanceSplits": []
+  },
+  "terms": {
+    "clauses": [
+      "Validity: This quotation is valid for 30 days from the date of issue.",
+      "Execution Time: Estimated Collection (Jeddah) within 10 days from PO and Advance Payment",
+      "Scope Variation Clause: Adding or cancelling any item(s) or scope of works covered in the BOQ may result in adjustment of unit rates of other related items, except for items explicitly quoted as optional."
+    ]
+  },
+  "closing": {
+    "signoff": "Best regards,",
+    "name": "Operations",
+    "org": "Encompass Design and Build",
+    "mobile": "+966 50 000 0000",
+    "email": "info@encompassgroupsa.com",
+    "website": "WWW.ENCOMPASSGROUPSA.COM"
+  }
+}

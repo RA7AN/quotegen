@@ -9,7 +9,7 @@
 import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer';
 import { PAGE, FONTS, COLORS } from './theme';
 import { styles as s, HeaderBand, FooterBand, EntityBlock, MetaField, LineItemsTable, TotalsStack } from './primitives';
-import { formatOrdinalDate } from '@/lib/dates';
+import { formatOrdinalDate, formatOrdinalDateComma } from '@/lib/dates';
 import { fillInLiteral } from '@/lib/escape';
 import type { PdfInput } from './input';
 
@@ -35,7 +35,7 @@ export function QuotationDoc({ doc, profile, totals, assets }: PdfInput) {
 
         <View style={s.metaGrid}>
           <MetaField label="Quotation #:" value={meta.docNo} />
-          <MetaField label="Valid Until:" value={formatOrdinalDate(meta.validUntilISO)} />
+          <MetaField label="Valid Until:" value={formatOrdinalDateComma(meta.validUntilISO)} />
           <MetaField label="Quotation Date:" value={formatOrdinalDate(meta.quoteDateISO)} />
         </View>
 

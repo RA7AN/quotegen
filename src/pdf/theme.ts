@@ -92,9 +92,9 @@ export function __resetFontRegistration(): void {
 /** Line-item column widths (pt) summing to CONTENT_WIDTH_PT = 468 (03 §3.3). */
 export const LINE_COLUMNS = {
   sno: 28,
-  description: 196,
+  description: 184,
   unitPrice: 68,
   uom: 36,
-  quantity: 44,
+  quantity: 56, // wide enough for the bold "Quantity" header to fit on one line (no hyphen wrap)
   price: 96,
 } as const;

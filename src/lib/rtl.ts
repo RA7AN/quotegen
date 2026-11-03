@@ -9,9 +9,9 @@
  * it is safe inside the deterministic render path.
  */
 
-import { ArabicShaper } from 'arabic-persian-reshaper';
+import reshapers from 'arabic-persian-reshaper';
 
 /** Reshape a logical-order Arabic string into reversed presentation forms for render. */
 export function shapeArabicForRender(text: string): string {
-  return ArabicShaper.convertArabic(text);
+  return reshapers.ArabicShaper.convertArabic(text);
 }

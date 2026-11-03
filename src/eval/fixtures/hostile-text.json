@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "template": "quotation",
+  "meta": {
+    "docNo": "ENCM-26-9999",
+    "quoteDateISO": "2026-10-30",
+    "validUntilISO": "2026-11-29",
+    "subject": "A & B \"quotes\" works — <i>urgent</i>",
+    "attn": "Mr O'Brien <script>alert(1)</script>"
+  },
+  "client": {
+    "name": "HOTEL <script>alert(1)</script> A & B \"Quotes\" 🏗️",
+    "addressLines": ["Street 'A' & 'B'", "<img onerror=hack(src)> District"],
+    "custId": "0099HSH",
+    "city": "Al Umlaj",
+    "crNo": "9999999999"
+  },
+  "lines": [
+    {
+      "id": "hostile-l1",
+      "description": "Supply of 3\" marble & 2' steel — <b>bold claim</b> — 100% advance 🏗️",
+      "uom": "u",
+      "qtyHundredths": 100,
+      "unitPriceHalalas": 100000,
+      "pricing": "rated"
+    }
+  ],
+  "commercials": {
+    "discountMode": "none",
+    "discountValue": 0,
+    "vatBps": 1500,
+    "paymentTermsText": ["100% advance"],
+    "advanceSplits": []
+  },
+  "terms": {
+    "clauses": ["Validity: 30 days & no <markup> accepted."]
+  },
+  "closing": {
+    "signoff": "Best regards,",
+    "name": "Ops \"Sudo\" O'Brien",
+    "org": "Encompass Design and Build",
+    "mobile": "+966 50 000 0000",
+    "email": "info@encompassgroupsa.com",
+    "website": "WWW.ENCOMPASSGROUPSA.COM"
+  }
+}

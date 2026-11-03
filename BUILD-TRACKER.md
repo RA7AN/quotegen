@@ -48,19 +48,25 @@ Legend: ✅ done & tested · 🚧 in progress · ⬜ not started
 - [x] `src/lib/storage.ts` — versioned localStorage draft + snapshot codec (FR-6): `quotegen:{draft,quotes,profile}:v1` keys, v0→v1 migration (AC-13), corrupt data decodes to null/[] (EC-11), clock/random-free (AC-28-safe); 17 tests
 - [x] Routes: `app/layout.tsx`, `app/page.tsx` (landing), `app/new`, `app/settings` (profile + factory reset, FR-5), `app/quotes` (open/duplicate/delete, FR-6.2)
 - [x] Download/Print reuse the Phase-2 path: `makeInput` + `renderToBlob` from `src/pdf/index.tsx`; preview is the real PDF via `<PDFViewer>`
+- [x] `tsc --noEmit` clean; `vitest run` 67/67 green (money/percent/calc/types/render/storage/wizard-state)
 - [x] Deps: `next@16.4.3`, `tailwindcss@4` (+`@tailwindcss/postcss`), `next.config.ts` with `output: 'export'`; `next build` prerenders all 5 routes; 67/67 tests green
 
-## Phase 4 — Eval harness & deploy (NEXT)
-- [ ] `src/eval/fixtures/*.json` — HP-1..HP-3, calc-oracle, hostile-text
-- [ ] `npm run eval` — calc gate, render gate, determinism gate, static grep gates (07)
-- [ ] Vercel static config (`output: 'export'`), no API routes (AC-24)
-- [ ] Dependency grep gate (AC-25); no-clock/no-random grep gate (AC-28)
+## Phase 4 — Eval harness & deploy ✅
+- [x] `src/eval/fixtures/` — `hp1-quotation-6824.json`, `hp2-quotation-6879.json`, `hp3-proforma-5799.json` (full `QuoteDocument` snapshots seeded from 06), `calc-oracle.json` (02 §4 rows + EC-1..3), `hostile-text.json` (EC-7)
+- [x] `src/eval/run-eval.ts` + `npm run eval` — calc gate, render gate (page count, 612×792 media box, verbatim strings w/ soft-break-tolerant match, section order, column-header order), determinism gate (double render), static gates, then `vitest run`; prints the per-AC table, exit code = gate (26 checks)
+- [x] Static grep gates — banned deps (AC-25), no `Date.now`/`Math.random` in `src/lib|domain|pdf` after comment-stripping (AC-28), no `route.ts` under `src/app` (AC-24), no `alert(`/`confirm(` call sites in shipped code (AC-9; test/eval fixture files excluded)
+- [x] Vercel static config — `output: 'export'` (was already in `next.config.ts`); package.json now `"type": "module"`; `next build` still prerenders all 5 routes; README gained Evaluation + Deploy sections
+- [x] Fidelity fixes surfaced by the harness: quotation meta dates now match the reference split (Valid Until `16th November, 2026` comma form / Quotation Date `17th October 2026`); `Quantity` column widened 44→56pt so the header no longer hyphen-wraps; Arabic reshaper switched to the ESM-safe default import
+- [x] Full gate run: `tsc --noEmit` clean · `npm run eval` 26/26 automated checks + 67/67 unit tests · `next build` static export green
 
 ---
 
 ## Deferred deliberately
-Phase 0–3 (repo, engine, PDF layer, wizard + storage + routes) are complete and green.
-Remaining: **Phase 4 — eval harness & deploy gates** (fixtures, `npm run eval`, static
-grep gates, Vercel deploy). `next build` already succeeds with `output: 'export'`;
-browser-level component tests (jsdom) were traded for pure-state unit tests over
-`wizard/state.ts` (same AC-8/9/10 coverage without a DOM stack).
+- **Human visual review (07 §3)** — open `src/eval/out/*.pdf` beside `Output-ref/` and mark
+  deviations; harness artifacts exist for all three happy paths + hostile text.
+- **HP-1..HP-4 walkthrough on the deployed Vercel URL** (07 §4) — build a preview/full
+  deploy when the visual review passes; zero-backend static host, no env needed.
+- Browser-level component tests (jsdom) traded for pure-state unit tests over
+  `wizard/state.ts` (same AC-8/9/10 coverage without a DOM stack).
+- `package.json` `"type": "module"` was required for the `tsx` harness (top-level await);
+  verified `next build`/`vitest` unaffected.
