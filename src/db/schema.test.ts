@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getTableColumns, getTableName } from 'drizzle-orm';
-import { clients, documents, events, signoffBlocks, schema } from './schema';
+import { account, clients, documents, events, schema, session, signoffBlocks, user, verification } from './schema';
 
 function colsOf(table: Parameters<typeof getTableColumns>[0]): string[] {
   return Object.keys(getTableColumns(table)).sort();
@@ -49,5 +49,30 @@ describe('db schema — column shape', () => {
 
   it('aggregates the tables for drizzle(client, { schema })', () => {
     expect(schema).toMatchObject({ documents, events, clients, signoffBlocks });
+  });
+});
+
+describe('db schema — Better Auth tables (#9)', () => {
+  it('maps to the singular model names the Drizzle adapter resolves by', () => {
+    expect(getTableName(user)).toBe('user');
+    expect(getTableName(session)).toBe('session');
+    expect(getTableName(account)).toBe('account');
+    expect(getTableName(verification)).toBe('verification');
+  });
+
+  it('exposes the exact camelCase fields Better Auth validates by property name', () => {
+    expect(colsOf(user)).toEqual(['createdAt', 'email', 'emailVerified', 'id', 'image', 'name', 'updatedAt']);
+    expect(colsOf(session)).toEqual([
+      'createdAt', 'expiresAt', 'id', 'ipAddress', 'token', 'updatedAt', 'userAgent', 'userId',
+    ]);
+    expect(colsOf(account)).toEqual([
+      'accessToken', 'accessTokenExpiresAt', 'accountId', 'createdAt', 'id', 'idToken', 'password',
+      'providerId', 'refreshToken', 'refreshTokenExpiresAt', 'scope', 'updatedAt', 'userId',
+    ]);
+    expect(colsOf(verification)).toEqual(['createdAt', 'expiresAt', 'id', 'identifier', 'updatedAt', 'value']);
+  });
+
+  it('is included in the aggregate schema under the singular keys', () => {
+    expect(schema).toMatchObject({ user, session, account, verification });
   });
 });

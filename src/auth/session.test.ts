@@ -1,12 +1,32 @@
-import { describe, expect, it } from 'vitest';
-import { getSessionUser, getSessionUserId } from './session';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { getSessionUser, getSessionUserId, requireSessionUser, UnauthorizedError } from './session';
 
-describe('auth/session stub (#13 groundwork → #9)', () => {
-  it('getSessionUserId resolves null (no session provider yet)', async () => {
+// Guarantee the creds-guarded "unconfigured" path regardless of ambient env, so the
+// seam returns null without ever touching next/headers or the DB.
+function clearAuthEnv() {
+  delete process.env.DATABASE_URL;
+  delete process.env.BETTER_AUTH_SECRET;
+}
+
+describe('auth/session seam (#9, guarded)', () => {
+  beforeEach(clearAuthEnv);
+  afterEach(clearAuthEnv);
+
+  it('getSessionUserId resolves null when auth is unconfigured', async () => {
     expect(await getSessionUserId()).toBeNull();
   });
 
-  it('getSessionUser resolves null (anonymous)', async () => {
+  it('getSessionUser resolves null (anonymous) when unconfigured', async () => {
     expect(await getSessionUser()).toBeNull();
+  });
+
+  it('still short-circuits to null when passed Headers but unconfigured', async () => {
+    const headers = new Headers({ cookie: 'session_token=whatever' });
+    expect(await getSessionUser(headers)).toBeNull();
+    expect(await getSessionUserId(headers)).toBeNull();
+  });
+
+  it('requireSessionUser throws UnauthorizedError when unconfigured (no session possible)', async () => {
+    await expect(requireSessionUser()).rejects.toBeInstanceOf(UnauthorizedError);
   });
 });
