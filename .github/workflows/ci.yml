@@ -48,5 +48,5 @@ jobs:
       - name: Eval gate suite (run-eval.ts)
         run: npm run eval:pdfs
 
-      - name: Build (static export + AC-24 check)
+      - name: Build (next build · server runtime)
         run: npm run build

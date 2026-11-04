@@ -24,3 +24,6 @@ src/eval/out/
 
 # Scratch (DOCX extraction for asset sourcing; never committed)
 .tmp/
+
+# Vercel CLI project link (project/org IDs; never commit)
+.vercel
