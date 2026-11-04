@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { getSessionUser, getSessionUserId } from './session';
+import { getSessionUser, getSessionUserId, requireSessionUser, UnauthorizedError } from './session';
 
 // Guarantee the creds-guarded "unconfigured" path regardless of ambient env, so the
 // seam returns null without ever touching next/headers or the DB.
@@ -24,5 +24,9 @@ describe('auth/session seam (#9, guarded)', () => {
     const headers = new Headers({ cookie: 'session_token=whatever' });
     expect(await getSessionUser(headers)).toBeNull();
     expect(await getSessionUserId(headers)).toBeNull();
+  });
+
+  it('requireSessionUser throws UnauthorizedError when unconfigured (no session possible)', async () => {
+    await expect(requireSessionUser()).rejects.toBeInstanceOf(UnauthorizedError);
   });
 });
