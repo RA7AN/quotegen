@@ -27,14 +27,28 @@ export const DEFAULT_COMPANY_PROFILE: CompanyProfile = {
   logos: { headerMark: '/brand/header-mark.png', footerMark: '/brand/footer-mark.png' },
 };
 
-/** Default numbered terms clauses for the quotation page 2 (03 §3.6). */
-export const DEFAULT_TERMS_CLAUSES: string[] = [
-  'Validity: This quotation is valid for 30 days from the date of issue.',
-  'Execution Time: Estimated Collection (Jeddah) within 10 days from PO and Advance Payment',
+/**
+ * Fixed default clauses that seed every new quote (03 §3.6): validity first, scope
+ * variation last. These are removable but flagged (the UI warns before deleting one).
+ */
+export const DEFAULT_FIRST_CLAUSE =
+  'Validity: This quotation is valid for 30 days from the date of issue.';
+export const DEFAULT_LAST_CLAUSE =
   'Scope Variation Clause: Adding or cancelling any item(s) or scope of works covered in the ' +
-    'BOQ may result in adjustment of unit rates of other related items, except for items ' +
-    'explicitly quoted as optional.',
+  'BOQ may result in adjustment of unit rates of other related items, except for items ' +
+  'explicitly quoted as optional.';
+
+/**
+ * Optional clauses that are NOT added by default — the user accepts or dismisses them
+ * from the terms stage. (Demoted from the old hard default so the middle terms are the
+ * user's call.)
+ */
+export const SUGGESTED_TERMS_CLAUSES: string[] = [
+  'Execution Time: Estimated Collection (Jeddah) within 10 days from PO and Advance Payment',
 ];
+
+/** The clauses a blank document starts with: the two fixed defaults only. */
+export const DEFAULT_TERMS_CLAUSES: string[] = [DEFAULT_FIRST_CLAUSE, DEFAULT_LAST_CLAUSE];
 
 /** Closing paragraph (03 §3.6). */
 export const DEFAULT_CLOSING_PARAGRAPH =

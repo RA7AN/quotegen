@@ -8,7 +8,7 @@
 
 import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer';
 import { PAGE, FONTS, COLORS } from './theme';
-import { styles as s, HeaderBand, FooterBand, EntityBlock, MetaField, LineItemsTable, TotalsStack } from './primitives';
+import { styles as s, HeaderBand, FooterBand, EntityBlock, MetaField, LineItemsTable, TotalsStack, Inline } from './primitives';
 import { formatOrdinalDate, formatOrdinalDateComma } from '@/lib/dates';
 import { fillInLiteral } from '@/lib/escape';
 import type { PdfInput } from './input';
@@ -40,20 +40,19 @@ export function QuotationDoc({ doc, profile, totals, assets }: PdfInput) {
         </View>
 
         <View style={s.metaFull}>
-          <Text style={s.metaValue}>{client.name}</Text>
+          <Inline text={client.name} style={s.metaValue} />
           {client.addressLines.filter(Boolean).map((l, i) => (
-            <Text key={i} style={s.metaValuePlain}>{l}</Text>
+            <Inline key={i} text={l} style={s.metaValuePlain} />
           ))}
           <MetaField label="Cust ID:" value={client.custId} bold={false} full />
           <MetaField label="City:" value={client.city} bold={false} full />
           <MetaField label="CR No.:" value={client.crNo} bold={false} full />
         </View>
 
-        <Text style={local.attn}>
-          {meta.attn ? `Attn. ${meta.attn},` : ''}
-          {meta.attn ? '\n' : ''}
-          {fillInLiteral('Kindly find the attached quotation for {subject}.', { subject: meta.subject })}
-        </Text>
+        <Inline
+          text={`${meta.attn ? `Attn. ${meta.attn},\n` : ''}${fillInLiteral('Kindly find the attached quotation for {subject}.', { subject: meta.subject })}`}
+          style={local.attn}
+        />
 
         <LineItemsTable lines={lines} totals={totals} />
 
@@ -69,7 +68,7 @@ export function QuotationDoc({ doc, profile, totals, assets }: PdfInput) {
           <View>
             <Text style={s.heading}>Payment Terms</Text>
             {commercials.paymentTermsText.filter(Boolean).map((t, i) => (
-              <Text key={i} style={s.clause}>{t}</Text>
+              <Inline key={i} text={`• ${t}`} style={s.clause} />
             ))}
           </View>
         )}
@@ -82,7 +81,7 @@ export function QuotationDoc({ doc, profile, totals, assets }: PdfInput) {
 
         <Text style={s.heading}>Terms &amp; Conditions</Text>
         {terms.clauses.map((c, i) => (
-          <Text key={i} style={s.clause}>{`${i + 1}. ${c}`}</Text>
+          <Inline key={i} text={`${i + 1}. ${c}`} style={s.clause} />
         ))}
 
         <Text style={s.closing}>
@@ -91,8 +90,8 @@ export function QuotationDoc({ doc, profile, totals, assets }: PdfInput) {
         </Text>
 
         <View>
-          <Text style={s.signoffLine}>{closing.signoff}</Text>
-          {closing.name ? <Text style={s.signoffLine}>{closing.name}</Text> : null}
+          <Inline text={closing.signoff} style={s.signoffLine} />
+          {closing.name ? <Inline text={closing.name} style={s.signoffLine} /> : null}
           {closing.org ? <Text style={s.signoffLine}>{closing.org}</Text> : null}
           {closing.mobile ? <Text style={s.signoffLine}>Mob: {closing.mobile}</Text> : null}
           {closing.email ? <Text style={s.signoffLine}>{closing.email}</Text> : null}

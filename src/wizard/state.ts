@@ -140,7 +140,7 @@ export function validateStep2(doc: QuoteDocument): FieldErrors {
 export function validateStep(step: WizardStep, doc: QuoteDocument): FieldErrors {
   if (step === 1) return validateStep1(doc);
   if (step === 2) return validateStep2(doc);
-  return {};
+  return {}; // steps 3 (terms) and 4 (review) have no required fields
 }
 
 export function stepComplete(step: WizardStep, doc: QuoteDocument): boolean {
@@ -149,7 +149,7 @@ export function stepComplete(step: WizardStep, doc: QuoteDocument): boolean {
 
 /** Highest step the user may jump to: every earlier step must validate (FR-2.3). */
 export function furthestAllowedStep(doc: QuoteDocument): WizardStep {
-  if (stepComplete(1, doc) && stepComplete(2, doc)) return 3;
+  if (stepComplete(1, doc) && stepComplete(2, doc)) return 4; // terms (3) never blocks, so review opens too
   return stepComplete(1, doc) ? 2 : 1;
 }
 

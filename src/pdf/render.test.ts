@@ -16,6 +16,9 @@ const dataUri = (rel: string, mime: string) =>
 const ASSETS = {
   headerMark: dataUri('public/brand/header-mark.png', 'image/png'),
   footerMark: dataUri('public/brand/footer-mark.png', 'image/png'),
+  headerBand: dataUri('public/brand/header-band.jpg', 'image/jpeg'),
+  footerStrip: dataUri('public/brand/footer-strip.jpg', 'image/jpeg'),
+  footerStripProforma: dataUri('public/brand/footer-strip-proforma.png', 'image/png'),
 };
 
 beforeAll(() => {
@@ -114,5 +117,23 @@ describe('PDF render — platform invariants', () => {
     const r2 = await render(d);
     expect(r1.pages).toBe(r2.pages);
     expect(r1.text).toBe(r2.text);
+  });
+
+  it('inline markup: **bold** / __underline__ tokens are consumed and text renders', async () => {
+    const d = doc({
+      lines: [{ ...line('1', 100000, 100), description: 'Supply of **marble** top, __installed__ today' }],
+      commercials: { discountMode: 'none', discountValue: 0, vatBps: 1500, paymentTermsText: ['100% **advance**'], advanceSplits: [] },
+      terms: { clauses: ['Please __confirm__ the **scope**.'] },
+    });
+    const { text } = await render(d);
+    // Styled run contents survive...
+    expect(text).toContain('marble');
+    expect(text).toContain('installed');
+    expect(text).toContain('advance');
+    expect(text).toContain('confirm');
+    expect(text).toContain('scope');
+    // ...and the reserved tokens themselves never leak into the rendered text.
+    expect(text).not.toContain('**');
+    expect(text).not.toContain('__');
   });
 });

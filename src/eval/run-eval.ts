@@ -40,6 +40,9 @@ registerFonts((file) => `data:font/${file.endsWith('.ttf') ? 'truetype' : 'opent
 const assets: PdfAssets = {
   headerMark: path.join(repoRoot, 'public', 'brand', 'header-mark.png'),
   footerMark: path.join(repoRoot, 'public', 'brand', 'footer-mark.png'),
+  headerBand: path.join(repoRoot, 'public', 'brand', 'header-band.jpg'),
+  footerStrip: path.join(repoRoot, 'public', 'brand', 'footer-strip.jpg'),
+  footerStripProforma: path.join(repoRoot, 'public', 'brand', 'footer-strip-proforma.png'),
 };
 
 type Row = { ac: string; label: string; pass: boolean; detail: string };

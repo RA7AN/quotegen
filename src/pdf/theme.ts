@@ -13,7 +13,7 @@ export const PAGE = {
   size: 'LETTER' as const,
   widthPt: 612,
   heightPt: 792,
-  margin: { top: 122.4, right: 72, bottom: 72, left: 72 },
+  margin: { top: 132, right: 72, bottom: 72, left: 72 },
   headerFooterOffsetPt: 36,
 } as const;
 

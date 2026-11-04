@@ -9,7 +9,7 @@
 
 import { LineItemEditor } from './line-item-editor';
 import { TotalsPanel } from './totals-panel';
-import { TextField, LinesTextArea, inputClass } from './fields';
+import { TextField, StringListEditor, inputClass } from './fields';
 import { parseDecimalToHalalas, formatSar } from '@/lib/money';
 import { parsePercentHundredths } from '@/lib/percent';
 import type { FieldErrors, WizardAction } from './state';
@@ -67,9 +67,12 @@ export function Step2Lines({
           </div>
 
           {!isProforma && (
-            <LinesTextArea
-              label="Payment terms (one per line)"
+            <StringListEditor
+              label="Payment terms"
               lines={commercials.paymentTermsText}
+              addLabel="Add payment term"
+              placeholder="e.g. 100% advance"
+              hint="Each line prints as a bullet under Payment Terms."
               onChange={(lines) => dispatch({ type: 'setPaymentTerms', lines })}
             />
           )}

@@ -53,12 +53,14 @@ describe('draft codec — FR-6.1 / AC-12', () => {
     expect(restored?.schemaVersion).toBe(SCHEMA_VERSION);
   });
 
-  it('restoring a step-3 draft lands on step 2 (never straight into export)', () => {
+  it('restoring a step-4 (review) draft lands on step 3 (never straight into export)', () => {
     const kv = memoryKV();
-    writeDraft(kv, 3, doc());
-    expect(readDraft(kv)?.step).toBe(2);
+    writeDraft(kv, 4, doc());
+    expect(readDraft(kv)?.step).toBe(3);
     expect(normalizeRestoredStep(1)).toBe(1);
     expect(normalizeRestoredStep(2)).toBe(2);
+    expect(normalizeRestoredStep(3)).toBe(3);
+    expect(normalizeRestoredStep(4)).toBe(3);
   });
 
   it('clearDraft removes the slot', () => {
