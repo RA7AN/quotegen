@@ -136,10 +136,11 @@ export function Wizard() {
       a.click();
       setStatus(`Downloaded ${filename}`);
       // #10: a Download is the definitive "generated" event — it logs 'exported'
-      // for the KPI tiles and persists the document payload ('document_saved') so
-      // #12 can re-render the PDF on open. Both are fire-and-forget.
+      // for the KPI tiles and persists the document row so #12 can re-render the
+      // PDF on open. The payload is the FULL render input ({ doc, profile }) so the
+      // re-render is deterministic regardless of the viewer's current device profile.
       void logActivity('exported', { docKind: state.doc.template });
-      void logActivity('document_saved', { docKind: state.doc.template, payload: state.doc });
+      void logActivity('document_saved', { docKind: state.doc.template, payload: { doc: state.doc, profile } });
     } catch (err) {
       setStatus(`Render failed: ${err instanceof Error ? err.message : String(err)}`);
     }

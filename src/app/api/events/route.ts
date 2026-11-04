@@ -72,13 +72,22 @@ export async function POST(req: Request): Promise<Response> {
   return Response.json({ ok: logged, documentId: linkedDocumentId }, { status: 202 });
 }
 
-/** Defensive extracts from the opaque payload: strings or null, never throwing. */
+/**
+ * Defensive extracts from the opaque payload: strings or null, never throwing.
+ * Handles the #12 full-input envelope ({ doc, profile }) and the legacy bare-document
+ * shape (#10 slice 3) so the documents.number/client_name columns stay populated.
+ */
+function docOf(payload: unknown): unknown {
+  const maybeDoc = (payload as { doc?: unknown } | null)?.doc;
+  return maybeDoc && typeof maybeDoc === 'object' ? maybeDoc : payload;
+}
+
 function readDocNumber(payload: unknown): string | null {
-  const meta = (payload as { meta?: { docNo?: unknown } } | null)?.meta;
+  const meta = (docOf(payload) as { meta?: { docNo?: unknown } } | null)?.meta;
   return typeof meta?.docNo === 'string' ? meta.docNo : null;
 }
 
 function readClientName(payload: unknown): string | null {
-  const client = (payload as { client?: { name?: unknown } } | null)?.client;
+  const client = (docOf(payload) as { client?: { name?: unknown } } | null)?.client;
   return typeof client?.name === 'string' ? client.name : null;
 }

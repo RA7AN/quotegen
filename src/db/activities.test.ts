@@ -2,15 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the drizzle client behind a chainable query builder: the point of these
 // tests is the module's own contract (guards, best-effort semantics, folding),
-// not drizzle internals. `isDbConfigured` is flipped via dbConfigured. `values`
-// returns a chainable so both logEvent (await .values) and saveDocument
-// (.values.onConflictDoUpdate/.returning) resolve through the same seam.
-const returning = vi.fn().mockResolvedValue([{ id: 'doc-1' }]);
+// not drizzle internals. `isDbConfigured` is flipped via dbConfigured.
+//   insert: .values(row) -> [.onConflictDoUpdate(..)]? .returning(..)  (logEvent/saveDocument)
+//   select: .from(..).where(..). [ .groupBy(..) | .orderBy(..).limit(..) | .limit(..) ]
+// `rows` is the awaited result for every read; setRows() configures it per test.
+let rows: unknown[] = [];
+const resolveRows = () => Promise.resolve(rows);
+const returning = vi.fn(resolveRows);
 const onConflictDoUpdate = vi.fn(() => ({ returning }));
 const values = vi.fn(() => ({ onConflictDoUpdate, returning }));
 const insert = vi.fn(() => ({ values }));
-const groupBy = vi.fn().mockResolvedValue([]);
-const where = vi.fn(() => ({ groupBy }));
+const groupBy = vi.fn(resolveRows);
+const limit = vi.fn(resolveRows);
+const orderBy = vi.fn(() => ({ limit }));
+const where = vi.fn(() => ({ groupBy, orderBy, limit }));
 const from = vi.fn(() => ({ where }));
 const select = vi.fn(() => ({ from }));
 const getDb = vi.fn(() => ({ insert, select }));
@@ -21,18 +26,23 @@ vi.mock('@/db/client', async (importOriginal) => {
   return { ...actual, getDb, isDbConfigured: () => dbConfigured };
 });
 
-const { foldEventCounts, deriveKpis, logEvent, eventCounts, saveDocument } = await import('./activities');
+const { foldEventCounts, deriveKpis, logEvent, eventCounts, saveDocument, listDocuments, getDocument } =
+  await import('./activities');
 
 beforeEach(() => {
   dbConfigured = false;
-  values.mockReset();
+  rows = [];
+  values.mockClear();
   values.mockImplementation(() => ({ onConflictDoUpdate, returning }));
   onConflictDoUpdate.mockClear();
-  returning.mockClear();
-  returning.mockResolvedValue([{ id: 'doc-1' }]);
+  returning.mockReset();
+  returning.mockImplementation(resolveRows);
   insert.mockClear();
   select.mockClear();
-  groupBy.mockResolvedValue([]);
+  where.mockClear();
+  groupBy.mockClear();
+  orderBy.mockClear();
+  limit.mockClear();
 });
 
 describe('foldEventCounts (#10)', () => {
@@ -152,6 +162,7 @@ describe('saveDocument (#10 slice 3)', () => {
 
   it('upserts on the (userId, kind, number) business key and returns the row id', async () => {
     dbConfigured = true;
+    rows = [{ id: 'doc-1' }];
     const id = await saveDocument({
       userId: 'u1',
       kind: 'quotation',
@@ -170,6 +181,7 @@ describe('saveDocument (#10 slice 3)', () => {
 
   it('plain-inserts (no upsert) when the document has no number', async () => {
     dbConfigured = true;
+    rows = [{ id: 'doc-1' }];
     const id = await saveDocument({ userId: 'u1', kind: 'proforma', number: null, payload: {} });
     expect(id).toBe('doc-1');
     expect(onConflictDoUpdate).not.toHaveBeenCalled();
@@ -188,5 +200,61 @@ describe('saveDocument (#10 slice 3)', () => {
     await expect(
       saveDocument({ userId: 'u1', kind: 'quotation', number: 'X', payload: {} }),
     ).resolves.toBeNull();
+  });
+});
+
+describe('listDocuments (#12)', () => {
+  it('returns [] without a query when unconfigured', async () => {
+    await expect(listDocuments('u1')).resolves.toEqual([]);
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('maps rows to summaries (Date or string createdAt -> ISO) newest-first', async () => {
+    dbConfigured = true;
+    const iso = '2026-11-04T10:00:00.000Z';
+    rows = [
+      { id: 'a', kind: 'quotation', number: 'ENCM-1', clientName: 'ACME', createdAt: new Date(iso) },
+      { id: 'b', kind: 'proforma', number: null, clientName: null, createdAt: iso },
+    ];
+    const items = await listDocuments('u1', 10);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toEqual({ id: 'a', kind: 'quotation', number: 'ENCM-1', clientName: 'ACME', createdAt: iso });
+    expect(items[1]!.createdAt).toBe(iso); // string createdAt normalized
+    expect(orderBy).toHaveBeenCalled(); // newest-first ordering applied
+    expect(limit).toHaveBeenCalledWith(10);
+  });
+
+  it('clamps an out-of-range limit into [1, 200]', async () => {
+    dbConfigured = true;
+    await listDocuments('u1', 9999);
+    expect(limit).toHaveBeenCalledWith(200);
+    await listDocuments('u1', -5);
+    expect(limit).toHaveBeenLastCalledWith(1);
+  });
+});
+
+describe('getDocument (#12)', () => {
+  it('returns null without a query when unconfigured', async () => {
+    await expect(getDocument('u1', 'a'.repeat(36))).resolves.toBeNull();
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('returns the scoped row (summary + payload) when found', async () => {
+    dbConfigured = true;
+    const iso = '2026-11-04T10:00:00.000Z';
+    rows = [{ id: 'a', kind: 'quotation', number: 'ENCM-1', clientName: 'ACME', createdAt: new Date(iso), payload: { doc: {}, profile: {} } }];
+    const doc = await getDocument('u1', 'a'.repeat(36));
+    expect(doc).not.toBeNull();
+    expect(doc!.summary.id).toBe('a');
+    expect(doc!.payload).toEqual({ doc: {}, profile: {} });
+    // user-scoped: the where-clause was applied (filters by userId + id)
+    expect(where).toHaveBeenCalled();
+    expect(limit).toHaveBeenCalledWith(1);
+  });
+
+  it('returns null when no row matches (unknown id or another user)', async () => {
+    dbConfigured = true;
+    rows = [];
+    await expect(getDocument('u1', 'a'.repeat(36))).resolves.toBeNull();
   });
 });

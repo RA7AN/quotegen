@@ -14,7 +14,7 @@
  *  - 'snapshot_saved' — explicit "Save quote" snapshot (localStorage, device-local)
  *  - 'document_saved' — document row written to `documents` (payload, #12 reuse)
  */
-import { eq, count } from 'drizzle-orm';
+import { and, eq, desc, count } from 'drizzle-orm';
 import { getDb, isDbConfigured } from './client';
 import { documents, events } from './schema';
 
@@ -99,6 +99,81 @@ export async function saveDocument(args: {
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Document reads (#12 — recent-documents list + single fetch for re-render)
+// ---------------------------------------------------------------------------
+
+/** Default + hard cap for the recent list, so one read stays cheap under free tiers. */
+export const DOC_LIST_LIMIT = 50;
+const DOC_LIST_MAX = 200;
+
+/** Lightweight row metadata for the list view (payload omitted — fetched per-open). */
+export type DocumentSummary = {
+  id: string;
+  kind: string;
+  number: string | null;
+  clientName: string | null;
+  createdAt: string;
+};
+
+/**
+ * The user's most-recent stored documents, newest first, capped at `limit`. Returns
+ * [] when unconfigured (creds-guarded degradation like the rest of this module). The
+ * `payload` is intentionally excluded here; a single document is fetched whole via
+ * `getDocument` when the user opens/re-renders it.
+ */
+export async function listDocuments(userId: string, limit = DOC_LIST_LIMIT): Promise<DocumentSummary[]> {
+  if (!isDbConfigured()) return [];
+  const capped = Math.min(Math.max(1, Math.floor(limit)), DOC_LIST_MAX);
+  const rows = await getDb()
+    .select({
+      id: documents.id,
+      kind: documents.kind,
+      number: documents.number,
+      clientName: documents.clientName,
+      createdAt: documents.createdAt,
+    })
+    .from(documents)
+    .where(eq(documents.userId, userId))
+    .orderBy(desc(documents.createdAt))
+    .limit(capped);
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    number: r.number,
+    clientName: r.clientName,
+    createdAt: (r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt)).toISOString(),
+  }));
+}
+
+/**
+ * One stored document for re-render: full `payload` plus the summary columns. Returns
+ * null when the id is unknown OR belongs to another user (the where-clause scopes by
+ * userId, so a valid id from a different account yields null — no cross-user leak).
+ */
+export async function getDocument(
+  userId: string,
+  id: string,
+): Promise<{ summary: DocumentSummary; payload: unknown } | null> {
+  if (!isDbConfigured()) return null;
+  const [row] = await getDb()
+    .select()
+    .from(documents)
+    .where(and(eq(documents.id, id), eq(documents.userId, userId)))
+    .limit(1);
+  if (!row) return null;
+  return {
+    summary: {
+      id: row.id,
+      kind: row.kind,
+      number: row.number,
+      clientName: row.clientName,
+      createdAt: (row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt)).toISOString(),
+    },
+    payload: row.payload,
+  };
 }
 
 /** One grouped read over the user's events: counts by type and by (type, docKind). */
