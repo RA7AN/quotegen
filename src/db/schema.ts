@@ -3,23 +3,41 @@
  *
  * These are the forward-looking tables that #10–#12 build on, defined once here so
  * features extend rather than churn the schema. Every row is scoped by `userId`
- * (plain `text`, indexed). #9 added the Better Auth tables below (canonical
- * `user`/`session`/`account`/`verification`); the feature tables keep `userId` as
- * plain text rather than a hard FK — that keeps this migration purely additive and
- * defers FK enforcement to #10 when those tables first receive rows.
+ * (indexed). #9 kept the feature tables' `userId` as plain text while they received
+ * no rows; #10 slice 3 tightened `documents.userId` to a real FK once document
+ * writes went live (migration 0002) — the other feature tables keep plain text
+ * until they first receive rows.
  *
  * Auth table shape is dictated by Better Auth's Drizzle adapter: tables are resolved
  * by model name (singular `user`/`session`/`account`/`verification`) and columns are
  * validated by camelCase property name, so those names are load-bearing, not stylistic.
  */
-import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+
+/**
+ * Better Auth core tables (#9). Ids/timestamps are written by Better Auth, so no
+ * DB-side defaults are required; `emailVerified` still gets a safe default.
+ * Defined before the feature tables because `documents.userId` references it eagerly.
+ */
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** A generated Quotation or Proforma Invoice (#10 KPI + #12 storage reuse). */
 export const documents = pgTable(
   'documents',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id').notNull(),
+    // FK enforced since #10 slice 3 — the first feature table to receive rows.
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
     kind: text('kind').notNull(), // 'quotation' | 'proforma'
     number: text('number'), // human doc number, e.g. ENCM-26-6879
     clientName: text('client_name'),
@@ -29,7 +47,12 @@ export const documents = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('documents_user_idx').on(t.userId), index('documents_user_kind_idx').on(t.userId, t.kind)],
+  (t) => [
+    index('documents_user_idx').on(t.userId),
+    index('documents_user_kind_idx').on(t.userId, t.kind),
+    // Business key for the export-time upsert in src/db/activities.ts (saveDocument).
+    uniqueIndex('documents_user_kind_number_uq').on(t.userId, t.kind, t.number),
+  ],
 );
 
 /** Append-only activity used for the landing KPI strip (#10). */
@@ -75,19 +98,10 @@ export const signoffBlocks = pgTable(
 );
 
 /**
- * Better Auth core tables (#9). Ids/timestamps are written by Better Auth, so no
- * DB-side defaults are required; `emailVerified` still gets a safe default.
+ * Better Auth session/account/verification tables (#9). `user` is defined above
+ * (documents.userId references it). Ids/timestamps are written by Better Auth, so
+ * no DB-side defaults are required.
  */
-export const user = pgTable('user', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified').notNull().default(false),
-  image: text('image'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
 export const session = pgTable('session', {
   id: text('id').primaryKey(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
