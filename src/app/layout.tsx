@@ -25,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav aria-label="Primary" className="flex gap-4 text-xs uppercase tracking-wide">
               <Link href="/new" className="hover:text-gold-light">New quote</Link>
               <Link href="/quotes" className="hover:text-gold-light">Quotes</Link>
+              <Link href="/recent" className="hover:text-gold-light">Recent</Link>
               <Link href="/settings" className="hover:text-gold-light">Settings</Link>
               <Link href="/sign-in" className="hover:text-gold-light">Sign in</Link>
             </nav>

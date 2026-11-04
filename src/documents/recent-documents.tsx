@@ -11,9 +11,10 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { registerFonts } from '@/pdf/theme';
 import { renderToBlob } from '@/pdf/index';
+import { ConfirmDialog } from '@/wizard/confirm-dialog';
 import { rehydrateById } from './rerender';
 
 // Browser font registration (bundled TTFs at /fonts/*), idempotent — same as the wizard.
@@ -31,32 +32,38 @@ export function RecentDocuments() {
   const [items, setItems] = useState<Summary[] | null>(null); // null = loading
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Summary | null>(null);
   const blobUrl = useRef<string | null>(null);
+
+  // Load (or reload) the user's stored documents. Shared by mount and post-delete refresh.
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/documents');
+      if (res.status === 401) {
+        setError('Sign in to see your recent documents.');
+        return;
+      }
+      if (!res.ok) {
+        setError('Could not load recent documents.');
+        return;
+      }
+      const data = (await res.json()) as { items?: unknown };
+      setItems(Array.isArray(data.items) ? (data.items as Summary[]) : []);
+    } catch {
+      setError('Could not load recent documents.');
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/documents');
-        if (res.status === 401) {
-          if (!cancelled) setError('Sign in to see your recent documents.');
-          return;
-        }
-        if (!res.ok) {
-          if (!cancelled) setError('Could not load recent documents.');
-          return;
-        }
-        const data = (await res.json()) as { items?: unknown };
-        if (!cancelled) setItems(Array.isArray(data.items) ? (data.items as Summary[]) : []);
-      } catch {
-        if (!cancelled) setError('Could not load recent documents.');
-      }
+    void (async () => {
+      if (!cancelled) await load();
     })();
     return () => {
       cancelled = true;
       if (blobUrl.current) URL.revokeObjectURL(blobUrl.current);
     };
-  }, []);
+  }, [load]);
 
   // Re-render a stored row to a fresh object URL; returns the URL + download filename,
   // or null after surfacing an inline error.
@@ -93,6 +100,24 @@ export function RecentDocuments() {
   async function open(id: string) {
     const built = await buildUrl(id);
     if (built) window.open(built.url, '_blank', 'noopener');
+  }
+
+  // Delete a confirmed row (user-scoped at the endpoint), then refresh the list.
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+    setPendingDelete(null);
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 404) setError('Could not remove that document.');
+      await load();
+    } catch {
+      setError('Could not remove that document.');
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -144,11 +169,28 @@ export function RecentDocuments() {
                 >
                   {busyId === d.id ? 'Rendering…' : 'Download'}
                 </button>
+                <button
+                  type="button"
+                  disabled={busyId === d.id}
+                  onClick={() => setPendingDelete(d)}
+                  className="rounded border border-red-300 px-3 py-1 text-xs text-red-700 disabled:opacity-50"
+                >
+                  Remove
+                </button>
               </div>
             </li>
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Remove this document?"
+        message={`“${pendingDelete?.number || 'Untitled'}” will be deleted from your recent documents. This cannot be undone.`}
+        confirmLabel="Remove"
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setPendingDelete(null)}
+      />
     </main>
   );
 }

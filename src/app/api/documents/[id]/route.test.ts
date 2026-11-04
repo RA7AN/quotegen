@@ -9,9 +9,10 @@ vi.mock('@/auth/session', async (importOriginal) => {
 });
 
 const getDocument = vi.fn();
-vi.mock('@/db/activities', () => ({ getDocument }));
+const deleteDocument = vi.fn();
+vi.mock('@/db/activities', () => ({ getDocument, deleteDocument }));
 
-const { GET } = await import('./route');
+const { GET, DELETE } = await import('./route');
 const { UnauthorizedError } = await import('@/auth/session');
 
 const UUID = '2f4a6b8c-1d2e-3f4a-5b6c-7d8e9f0a1b2c';
@@ -19,6 +20,7 @@ const UUID = '2f4a6b8c-1d2e-3f4a-5b6c-7d8e9f0a1b2c';
 beforeEach(() => {
   requireSessionUser.mockReset();
   getDocument.mockReset();
+  deleteDocument.mockReset();
 });
 
 function get(id: string): Parameters<typeof GET>[1] {
@@ -63,5 +65,37 @@ describe('GET /api/documents/[id] (#12 slice 1)', () => {
     const res = await GET(new Request(`http://localhost/api/documents/${UUID}`), get(UUID));
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual(doc);
+  });
+});
+
+describe('DELETE /api/documents/[id] (#12 slice 3)', () => {
+  it('returns 401 when signed out and never deletes', async () => {
+    requireSessionUser.mockRejectedValue(new UnauthorizedError());
+    const res = await DELETE(new Request('http://localhost/api/documents/x', { method: 'DELETE' }), get(UUID));
+    expect(res.status).toBe(401);
+    expect(deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 for a malformed (non-uuid) id without a delete', async () => {
+    requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
+    const res = await DELETE(new Request('http://localhost/api/documents/nope', { method: 'DELETE' }), get('nope'));
+    expect(res.status).toBe(404);
+    expect(deleteDocument).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when nothing was removed (unknown id or another user)', async () => {
+    requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
+    deleteDocument.mockResolvedValue(false);
+    const res = await DELETE(new Request(`http://localhost/api/documents/${UUID}`, { method: 'DELETE' }), get(UUID));
+    expect(res.status).toBe(404);
+    expect(deleteDocument).toHaveBeenCalledWith('u1', UUID);
+  });
+
+  it('returns { ok: true } when the owner\'s row is removed', async () => {
+    requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
+    deleteDocument.mockResolvedValue(true);
+    const res = await DELETE(new Request(`http://localhost/api/documents/${UUID}`, { method: 'DELETE' }), get(UUID));
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true });
   });
 });

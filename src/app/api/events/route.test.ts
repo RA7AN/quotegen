@@ -11,9 +11,10 @@ vi.mock('@/auth/session', async (importOriginal) => {
 
 const logEvent = vi.fn();
 const saveDocument = vi.fn();
+const pruneDocuments = vi.fn();
 const EVENT_KINDS = ['exported', 'draft_saved', 'snapshot_saved', 'document_saved'] as const;
 const DOC_KINDS = ['quotation', 'proforma'] as const;
-vi.mock('@/db/activities', () => ({ logEvent, saveDocument, EVENT_KINDS, DOC_KINDS }));
+vi.mock('@/db/activities', () => ({ logEvent, saveDocument, pruneDocuments, EVENT_KINDS, DOC_KINDS }));
 
 const { POST } = await import('./route');
 const { UnauthorizedError } = await import('@/auth/session');
@@ -22,6 +23,8 @@ beforeEach(() => {
   requireSessionUser.mockReset();
   logEvent.mockReset();
   saveDocument.mockReset();
+  pruneDocuments.mockReset();
+  pruneDocuments.mockResolvedValue(0);
 });
 
 function request(body: unknown): Request {
@@ -96,6 +99,8 @@ describe('POST /api/events (#10 slice 1)', () => {
     });
     // event links to the fresh row id, not the (absent) client echo
     expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ documentId: 'row-9' }));
+    // retention runs after a successful save (#12)
+    expect(pruneDocuments).toHaveBeenCalledWith('u1');
   });
 
   it('does not persist for non-document kinds even with a stray payload', async () => {
@@ -114,6 +119,8 @@ describe('POST /api/events (#10 slice 1)', () => {
     expect(res.status).toBe(202);
     await expect(res.json()).resolves.toEqual({ ok: false, documentId: null });
     expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ documentId: null }));
+    // nothing was saved, so retention is skipped
+    expect(pruneDocuments).not.toHaveBeenCalled();
   });
 
   it('still answers 202 when logging no-ops (best-effort telemetry)', async () => {

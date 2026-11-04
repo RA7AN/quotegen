@@ -14,7 +14,7 @@
  *  - 'snapshot_saved' — explicit "Save quote" snapshot (localStorage, device-local)
  *  - 'document_saved' — document row written to `documents` (payload, #12 reuse)
  */
-import { and, eq, desc, count } from 'drizzle-orm';
+import { and, eq, desc, count, inArray } from 'drizzle-orm';
 import { getDb, isDbConfigured } from './client';
 import { documents, events } from './schema';
 
@@ -174,6 +174,51 @@ export async function getDocument(
     },
     payload: row.payload,
   };
+}
+
+/**
+ * Delete one stored document, scoped to its owner. Returns true only when a row was
+ * actually removed (a valid id from another account deletes nothing → false, which the
+ * route maps to 404 — no cross-user delete). Best-effort like the rest of this module:
+ * false when unconfigured or on any failure.
+ */
+export async function deleteDocument(userId: string, id: string): Promise<boolean> {
+  if (!isDbConfigured()) return false;
+  try {
+    const deleted = await getDb()
+      .delete(documents)
+      .where(and(eq(documents.id, id), eq(documents.userId, userId)))
+      .returning({ id: documents.id });
+    return deleted.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Retention cap (#12): how many recent documents each user keeps before the rest are pruned. */
+export const DOC_RETENTION = 50;
+
+/**
+ * Best-effort retention: keep a user's newest `keep` documents and delete anything older,
+ * so storage stays bounded under free-tier caps. Called after a successful save, when the
+ * total is at most `keep + 1`, so the read stays cheap (no unbounded scan). Returns the
+ * number pruned; 0 when unconfigured or on any failure (never throws into the export flow).
+ */
+export async function pruneDocuments(userId: string, keep = DOC_RETENTION): Promise<number> {
+  if (!isDbConfigured()) return 0;
+  try {
+    const rows = await getDb()
+      .select({ id: documents.id })
+      .from(documents)
+      .where(eq(documents.userId, userId))
+      .orderBy(desc(documents.createdAt));
+    const stale = rows.slice(Math.max(1, Math.floor(keep))).map((r) => r.id);
+    if (stale.length === 0) return 0;
+    await getDb().delete(documents).where(inArray(documents.id, stale));
+    return stale.length;
+  } catch {
+    return 0;
+  }
 }
 
 /** One grouped read over the user's events: counts by type and by (type, docKind). */

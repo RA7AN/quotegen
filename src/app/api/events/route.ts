@@ -12,7 +12,7 @@
  */
 import { z } from 'zod';
 import { requireSessionUser, UnauthorizedError, type SessionUser } from '@/auth/session';
-import { logEvent, saveDocument, EVENT_KINDS, DOC_KINDS } from '@/db/activities';
+import { logEvent, saveDocument, pruneDocuments, EVENT_KINDS, DOC_KINDS } from '@/db/activities';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +61,15 @@ export async function POST(req: Request): Promise<Response> {
       payload,
     });
     linkedDocumentId = savedId ?? null;
+    // Retention (#12): keep the newest N rows per user so storage stays bounded under
+    // free-tier caps. Best-effort and awaited (never allowed to fail the export).
+    if (savedId) {
+      try {
+        await pruneDocuments(user.id);
+      } catch {
+        /* ignore — pruning is optional cleanup, not part of the accepted write */
+      }
+    }
   }
 
   const logged = await logEvent({

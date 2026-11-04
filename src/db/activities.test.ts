@@ -14,11 +14,17 @@ const values = vi.fn(() => ({ onConflictDoUpdate, returning }));
 const insert = vi.fn(() => ({ values }));
 const groupBy = vi.fn(resolveRows);
 const limit = vi.fn(resolveRows);
-const orderBy = vi.fn(() => ({ limit }));
+// orderBy must be BOTH awaitable (pruneDocuments awaits the ordered read directly) and
+// chainable into .limit() (listDocuments). A thenable carrying a limit method does both.
+const orderBy = vi.fn(() => Object.assign(Promise.resolve(rows), { limit }));
 const where = vi.fn(() => ({ groupBy, orderBy, limit }));
 const from = vi.fn(() => ({ where }));
 const select = vi.fn(() => ({ from }));
-const getDb = vi.fn(() => ({ insert, select }));
+//   delete: .delete(table).where(..). [ .returning(..) ]
+const delReturning = vi.fn(resolveRows);
+const delWhere = vi.fn(() => ({ returning: delReturning }));
+const del = vi.fn(() => ({ where: delWhere }));
+const getDb = vi.fn(() => ({ insert, select, delete: del }));
 let dbConfigured = false;
 
 vi.mock('@/db/client', async (importOriginal) => {
@@ -26,7 +32,7 @@ vi.mock('@/db/client', async (importOriginal) => {
   return { ...actual, getDb, isDbConfigured: () => dbConfigured };
 });
 
-const { foldEventCounts, deriveKpis, logEvent, eventCounts, saveDocument, listDocuments, getDocument } =
+const { foldEventCounts, deriveKpis, logEvent, eventCounts, saveDocument, listDocuments, getDocument, deleteDocument, pruneDocuments } =
   await import('./activities');
 
 beforeEach(() => {
@@ -43,6 +49,11 @@ beforeEach(() => {
   groupBy.mockClear();
   orderBy.mockClear();
   limit.mockClear();
+  orderBy.mockImplementation(() => Object.assign(Promise.resolve(rows), { limit }));
+  del.mockClear();
+  delWhere.mockClear();
+  delReturning.mockReset();
+  delReturning.mockImplementation(resolveRows);
 });
 
 describe('foldEventCounts (#10)', () => {
@@ -256,5 +267,62 @@ describe('getDocument (#12)', () => {
     dbConfigured = true;
     rows = [];
     await expect(getDocument('u1', 'a'.repeat(36))).resolves.toBeNull();
+  });
+});
+
+describe('deleteDocument (#12 slice 3)', () => {
+  it('returns false without a delete when unconfigured', async () => {
+    await expect(deleteDocument('u1', 'a'.repeat(36))).resolves.toBe(false);
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('true when a scoped row was removed (returning a row)', async () => {
+    dbConfigured = true;
+    rows = [{ id: 'a' }];
+    await expect(deleteDocument('u1', 'a'.repeat(36))).resolves.toBe(true);
+    expect(del).toHaveBeenCalled();
+    expect(delWhere).toHaveBeenCalled(); // user-scoped where-clause applied
+    expect(delReturning).toHaveBeenCalled();
+  });
+
+  it('false when nothing matched (unknown id or another user)', async () => {
+    dbConfigured = true;
+    rows = [];
+    await expect(deleteDocument('u1', 'a'.repeat(36))).resolves.toBe(false);
+  });
+
+  it('swallows delete failures and returns false', async () => {
+    dbConfigured = true;
+    delWhere.mockRejectedValueOnce(new Error('connection reset'));
+    await expect(deleteDocument('u1', 'a'.repeat(36))).resolves.toBe(false);
+  });
+});
+
+describe('pruneDocuments (#12 slice 3)', () => {
+  it('returns 0 without a query when unconfigured', async () => {
+    await expect(pruneDocuments('u1')).resolves.toBe(0);
+    expect(select).not.toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('keeps the newest N and deletes the rest', async () => {
+    dbConfigured = true;
+    rows = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]; // newest-first from the ordered read
+    const pruned = await pruneDocuments('u1', 2);
+    expect(pruned).toBe(1); // only the oldest row dropped
+    expect(del).toHaveBeenCalled();
+  });
+
+  it('is a no-op (0, no delete) when the user is already under the cap', async () => {
+    dbConfigured = true;
+    rows = [{ id: 'a' }, { id: 'b' }];
+    await expect(pruneDocuments('u1', 5)).resolves.toBe(0);
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it('swallows read failures and returns 0', async () => {
+    dbConfigured = true;
+    select.mockImplementationOnce(() => { throw new Error('boom'); });
+    await expect(pruneDocuments('u1')).resolves.toBe(0);
   });
 });
