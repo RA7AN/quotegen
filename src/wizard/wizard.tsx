@@ -40,6 +40,7 @@ import {
 } from '@/lib/storage';
 import type { PdfAssets } from '@/pdf/primitives';
 import type { LineItem, QuoteDocument } from '@/domain/types';
+import { logActivity } from './telemetry';
 
 // Browser font registration: bundled TTFs served from /fonts/* (02 §5.5). Idempotent.
 registerFonts((file) => `/fonts/${file}`);
@@ -63,6 +64,7 @@ export function Wizard() {
   const [saveName, setSaveName] = useState('');
   const hydrated = useRef(false);
   const dirty = useRef(false); // autosave only once the user (or a resume) has touched the doc
+  const draftLogged = useRef(false); // one draft_saved event per wizard session (#10)
   const lastBlobUrl = useRef<string | null>(null);
 
   const dispatch = (a: Parameters<typeof dispatchRaw>[0]) => {
@@ -85,9 +87,17 @@ export function Wizard() {
 
   // Debounced autosave on every change once the doc is dirty (FR-6.1) — a pristine
   // blank wizard is never persisted, so it can't nag "Resume draft?" next visit.
+  // The first persist of a session also logs a draft_saved event (#10), throttled
+  // to once so autosave chatter doesn't spam the events table.
   const autosave = useMemo(
     () => debounce((s: { step: WizardStep; doc: QuoteDocument }) => {
-      if (hydrated.current && dirty.current) writeDraft(browserKV(), s.step, s.doc);
+      if (hydrated.current && dirty.current) {
+        writeDraft(browserKV(), s.step, s.doc);
+        if (!draftLogged.current) {
+          draftLogged.current = true;
+          void logActivity('draft_saved', { docKind: s.doc.template });
+        }
+      }
     }, 400),
     [],
   );
@@ -125,6 +135,7 @@ export function Wizard() {
       a.download = filename;
       a.click();
       setStatus(`Downloaded ${filename}`);
+      void logActivity('exported', { docKind: state.doc.template }); // #10 KPI source
     } catch (err) {
       setStatus(`Render failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -144,6 +155,7 @@ export function Wizard() {
       lastBlobUrl.current = URL.createObjectURL(blob);
       window.open(lastBlobUrl.current, '_blank', 'noopener');
       setStatus('PDF opened in a new tab — use its print button.');
+      void logActivity('exported', { docKind: state.doc.template }); // #10 KPI source
     } catch (err) {
       setStatus(`Render failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -163,6 +175,7 @@ export function Wizard() {
     });
     setSaveName('');
     setStatus(`Saved “${name}” — find it under Quotes.`);
+    void logActivity('snapshot_saved', { docKind: state.doc.template }); // #10 KPI source
   };
 
   return (
