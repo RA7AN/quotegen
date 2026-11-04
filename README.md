@@ -1,5 +1,7 @@
 # Quotegen
 
+[![CI](https://github.com/RA7AN/quotegen/actions/workflows/ci.yml/badge.svg)](https://github.com/RA7AN/quotegen/actions/workflows/ci.yml)
+
 Deterministic web quote/proforma builder. Produces a client-ready **Quotation** or
 **Proforma Invoice** PDF in minutes — zero manual formatting, zero manual arithmetic.
 
