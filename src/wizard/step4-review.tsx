@@ -1,21 +1,18 @@
 /**
- * wizard/step3-review.tsx — Step 3: review & export (FR-2.1 step 3, FR-7).
+ * wizard/step4-review.tsx — Step 4: review & export (FR-2.1, FR-7).
  *
  * The preview IS the PDF (`<PDFViewer>` over the exact element `renderToBlob` prints —
- * 02 §1 "single source of truth", no HTML/PDF divergence). Free-text prose (terms
- * clauses + sign-off block) stays click-to-edit here; everything numeric is fixed by
- * steps 1–2 and the engine. Download/Print/Save handlers are owned by the wizard.
+ * 02 §1 "single source of truth", no HTML/PDF divergence). Terms clauses and the sign-off
+ * block now live on step 3, so this step is purely preview + export. Download/Print/Save
+ * handlers are owned by the wizard.
  */
 
 import { PDFViewer } from '@react-pdf/renderer';
-import { LinesTextArea, TextField } from './fields';
 import { buildElement } from '@/pdf/index';
 import type { PdfInput } from '@/pdf/input';
-import type { WizardAction } from './state';
 
-export function Step3Review({
+export function Step4Review({
   input,
-  dispatch,
   status,
   onDownload,
   onPrint,
@@ -24,7 +21,6 @@ export function Step3Review({
   setSaveName,
 }: {
   input: PdfInput;
-  dispatch: (a: WizardAction) => void;
   status: string;
   onDownload: () => void;
   onPrint: () => void;
@@ -32,25 +28,9 @@ export function Step3Review({
   saveName: string;
   setSaveName: (v: string) => void;
 }) {
-  const { doc } = input;
   return (
-    <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
+    <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
       <div className="space-y-4">
-        <LinesTextArea
-          label="Terms & Conditions clauses"
-          rows={7}
-          lines={doc.terms.clauses}
-          onChange={(clauses) => dispatch({ type: 'setTermsClauses', clauses })}
-        />
-        <div className="space-y-3 rounded border border-neutral-200 p-3">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-muted">Sign-off block</h3>
-          <TextField label="Sign-off line" value={doc.closing.signoff} onChange={(v) => dispatch({ type: 'setClosing', patch: { signoff: v } })} />
-          <TextField label="Name" value={doc.closing.name} onChange={(v) => dispatch({ type: 'setClosing', patch: { name: v } })} />
-          <TextField label="Organisation" value={doc.closing.org} onChange={(v) => dispatch({ type: 'setClosing', patch: { org: v } })} />
-          <TextField label="Mobile" value={doc.closing.mobile} onChange={(v) => dispatch({ type: 'setClosing', patch: { mobile: v } })} />
-          <TextField label="Email" value={doc.closing.email} onChange={(v) => dispatch({ type: 'setClosing', patch: { email: v } })} />
-        </div>
-
         <div className="space-y-2 rounded border border-neutral-200 bg-panel p-3">
           <h3 className="text-xs font-bold uppercase tracking-wide text-muted">Export</h3>
           <div className="flex gap-2">

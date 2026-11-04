@@ -5,7 +5,7 @@
  * Errors are the inline field-level messages from state.ts validation (AC-9).
  */
 
-import { TextField, LinesTextArea } from './fields';
+import { TextField, RichInput, LinesTextArea } from './fields';
 import type { FieldErrors } from './state';
 import type { QuoteDocument } from '@/domain/types';
 import type { WizardAction } from './state';
@@ -70,13 +70,13 @@ export function Step1Meta({
 
       <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Client</h3>
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
+        <RichInput
           label="Client name"
           value={doc.client.name}
           error={errors['client.name']}
           onChange={(v) => dispatch({ type: 'setClient', patch: { name: v } })}
         />
-        <TextField
+        <RichInput
           label="Attention line"
           value={doc.meta.attn}
           placeholder="Mr Mithun"
@@ -107,7 +107,7 @@ export function Step1Meta({
         onChange={(lines) => dispatch({ type: 'setAddressLines', lines })}
       />
 
-      <TextField
+      <RichInput
         label="Subject"
         value={doc.meta.subject}
         placeholder="Kidds Club Floor"

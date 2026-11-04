@@ -16,7 +16,8 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Step1Meta } from './step1-meta';
 import { Step2Lines } from './step2-lines';
-import { Step3Review } from './step3-review';
+import { Step3Terms } from './step3-terms';
+import { Step4Review } from './step4-review';
 import {
   furthestAllowedStep,
   initialWizardState,
@@ -46,7 +47,8 @@ registerFonts((file) => `/fonts/${file}`);
 const STEPS: ReadonlyArray<{ n: WizardStep; label: string }> = [
   { n: 1, label: 'Meta & client' },
   { n: 2, label: 'Line items & commercials' },
-  { n: 3, label: 'Review & export' },
+  { n: 3, label: 'Terms & conditions' },
+  { n: 4, label: 'Review & export' },
 ];
 
 type ResumeState = 'checking' | 'none' | 'found' | 'corrupt';
@@ -56,7 +58,7 @@ export function Wizard() {
   const [profile, setProfile] = useState(loadProfile(browserKV()));
   const [resume, setResume] = useState<ResumeState>('checking');
   const [draftRef] = useState(() => readDraft(browserKV()));
-  const [attempted, setAttempted] = useState<Record<WizardStep, boolean>>({ 1: false, 2: false, 3: false });
+  const [attempted, setAttempted] = useState<Record<WizardStep, boolean>>({ 1: false, 2: false, 3: false, 4: false });
   const [status, setStatus] = useState('');
   const [saveName, setSaveName] = useState('');
   const hydrated = useRef(false);
@@ -69,7 +71,7 @@ export function Wizard() {
   };
 
   const errors: FieldErrors = attempted[state.step] ? validateStep(state.step, state.doc) : {};
-  const canReach3 = furthestAllowedStep(state.doc) >= 3;
+  const canReachReview = furthestAllowedStep(state.doc) >= 4;
 
   // One-time draft probe (client-only; static export prerenders with 'checking').
   useEffect(() => {
@@ -93,8 +95,8 @@ export function Wizard() {
     if (resume !== 'found') autosave({ step: state.step, doc: state.doc });
   }, [state, resume, autosave]);
 
-  const assets: PdfAssets = { headerMark: profile.logos.headerMark, footerMark: profile.logos.footerMark };
-  const input = useMemo(() => makeInput(state.doc, profile, assets), [state.doc, profile, assets.headerMark, assets.footerMark]);
+  const assets: PdfAssets = { headerMark: profile.logos.headerMark, footerMark: profile.logos.footerMark, headerBand: '/brand/header-band.jpg', footerStrip: '/brand/footer-strip.jpg', footerStripProforma: '/brand/footer-strip-proforma.png' };
+  const input = useMemo(() => makeInput(state.doc, profile, assets), [state.doc, profile, assets.headerMark, assets.footerMark, assets.headerBand, assets.footerStrip, assets.footerStripProforma]);
 
   const go = (step: WizardStep) => {
     setAttempted((a) => ({ ...a, [state.step]: true }));
@@ -109,8 +111,8 @@ export function Wizard() {
   };
 
   const download = async (): Promise<void> => {
-    if (!canReach3) {
-      setStatus('Complete steps 1–2 first — required fields are still missing.');
+    if (!canReachReview) {
+      setStatus('Complete the earlier steps first — required fields are still missing.');
       return;
     }
     setStatus('Rendering PDF…');
@@ -131,8 +133,8 @@ export function Wizard() {
   // Print path per 02 §5.4: no parallel HTML print stylesheet — open the real PDF in
   // the browser viewer and let its toolbar print.
   const print = async (): Promise<void> => {
-    if (!canReach3) {
-      setStatus('Complete steps 1–2 first — required fields are still missing.');
+    if (!canReachReview) {
+      setStatus('Complete the earlier steps first — required fields are still missing.');
       return;
     }
     setStatus('Opening PDF for print…');
@@ -245,10 +247,10 @@ export function Wizard() {
       <main className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
         {state.step === 1 && <Step1Meta doc={state.doc} errors={errors} dispatch={dispatch} />}
         {state.step === 2 && <Step2Lines doc={state.doc} errors={errors} dispatch={dispatch} onAddLine={addLine} />}
-        {state.step === 3 && (
-          <Step3Review
+        {state.step === 3 && <Step3Terms doc={state.doc} dispatch={dispatch} />}
+        {state.step === 4 && (
+          <Step4Review
             input={input}
-            dispatch={dispatch}
             status={status}
             onDownload={() => void download()}
             onPrint={() => void print()}
@@ -269,11 +271,11 @@ export function Wizard() {
           ← Back
         </button>
         <span className="text-xs text-muted">
-          {state.step === 3
+          {state.step === 4
             ? `Filename will be: ${filenameFor(state.doc)}`
             : 'Autosaved locally as you type'}
         </span>
-        {state.step < 3 && (
+        {state.step < 4 && (
           <button
             type="button"
             onClick={() => go((state.step + 1) as WizardStep)}

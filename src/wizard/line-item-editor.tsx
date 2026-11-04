@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { inputClass } from './fields';
+import { inputClass, RichTextArea } from './fields';
 import { parseDecimalToHalalas, formatSar } from '@/lib/money';
 import { DEFAULT_UOM_OPTIONS } from '@/domain/defaults';
 import { computeLinePriceHalalas } from '@/domain/calc';
@@ -94,13 +94,13 @@ export function LineItemEditor({
         </span>
       </div>
 
-      <textarea
-        aria-label={`Description for line ${sno}`}
+      <RichTextArea
+        ariaLabel={`Description for line ${sno}`}
         rows={2}
         value={line.description}
         placeholder="Supply and install …"
         className={inputClass}
-        onChange={(e) => onChange({ description: e.target.value })}
+        onChange={(v) => onChange({ description: v })}
       />
       {error && <p role="alert" className="mt-1 text-xs font-medium text-red-700">{error}</p>}
 

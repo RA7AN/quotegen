@@ -115,7 +115,7 @@ export function decodeDoc(raw: unknown): QuoteDocument | null {
 // Draft (FR-6.1 / AC-12)
 // ---------------------------------------------------------------------------
 
-export type WizardStep = 1 | 2 | 3;
+export type WizardStep = 1 | 2 | 3 | 4;
 
 export type DraftEnvelope = {
   schemaVersion: number;
@@ -125,10 +125,11 @@ export type DraftEnvelope = {
 
 /**
  * Mirror of the reference wizard: never restore straight into the review/export step —
- * entry gates belong to the in-session flow, so a restored step 3 lands on step 2.
+ * entry gates belong to the in-session flow, so a restored review step (4) lands on the
+ * terms step (3).
  */
 export function normalizeRestoredStep(step: WizardStep): WizardStep {
-  return step === 3 ? 2 : step;
+  return step === 4 ? 3 : step;
 }
 
 export function encodeDraft(step: WizardStep, doc: QuoteDocument): string {
@@ -151,7 +152,7 @@ export function readDraft(kv: KVStorage): DraftEnvelope | null {
   const doc = decodeDoc(env.doc);
   if (!doc) return null;
   const step = env.step;
-  const safeStep: WizardStep = step === 1 || step === 3 ? (step as WizardStep) : 2;
+  const safeStep: WizardStep = step === 1 || step === 2 || step === 3 || step === 4 ? (step as WizardStep) : 2;
   return { schemaVersion: STORAGE_SCHEMA_VERSION, step: normalizeRestoredStep(safeStep), doc };
 }
 

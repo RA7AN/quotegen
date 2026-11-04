@@ -111,7 +111,7 @@ describe('step gating (FR-2.3 / AC-9)', () => {
   });
 
   it('valid step 1 unlocks step 2; empty/blank-line step 2 blocks review', () => {
-    expect(furthestAllowedStep(filledDoc())).toBe(3);
+    expect(furthestAllowedStep(filledDoc())).toBe(4);
     expect(stepComplete(2, filledDoc({ lines: [] }))).toBe(false);
     expect(stepComplete(2, filledDoc({ lines: [line('a', { description: '   ' })] }))).toBe(false);
     expect(validateStep2(filledDoc({ lines: [line('a', { description: '' })] })))

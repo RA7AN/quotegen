@@ -7,81 +7,39 @@
  */
 
 import { StyleSheet, View, Text, Image } from '@react-pdf/renderer';
-import { COLORS, FONTS, LINE_COLUMNS, PAGE, CONTENT_WIDTH_PT } from './theme';
+import type { Style } from '@react-pdf/types';
+import { COLORS, FONTS, LINE_COLUMNS, PAGE } from './theme';
 import { formatSar, formatSarPrefixed } from '@/lib/money';
+import { parseInline } from '@/lib/inline';
 import type { ComputedTotals } from '@/domain/calc';
 import type { CompanyProfile, LineItem } from '@/domain/types';
 
-export type PdfAssets = { headerMark: string; footerMark: string };
+export type PdfAssets = {
+  headerMark: string;
+  footerMark: string;
+  headerBand: string;
+  footerStrip: string;
+  footerStripProforma: string;
+};
 
 export const styles = StyleSheet.create({
   // ---- header band (edge-to-edge, 03 §2.1) ----
+  // The reference header is a single full-width raster strip (PDF xref 10, 612×124.8pt:
+  // black band + chevrons + two-line name + tagline + tower logo + gold rule, all baked
+  // in). We clone it 1:1 with that graphic instead of a vector approximation, matching
+  // how the source document is actually built (its header carries no selectable text).
   headerFixed: { position: 'absolute', top: 0, left: 0, width: PAGE.widthPt },
-  headerBand: {
-    width: PAGE.widthPt,
-    height: 66,
-    backgroundColor: COLORS.band,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 8,
-    paddingRight: 26,
-  },
-  chevronWrap: { width: 92, height: 66, marginLeft: -34, position: 'relative' },
-  chevron: {
-    position: 'absolute',
-    width: 22,
-    height: 22,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-    transform: 'rotate(45deg)',
-  },
-  headerTitles: { flex: 1, marginLeft: 6 },
-  companyName: {
-    fontFamily: FONTS.body,
-    fontWeight: 700,
-    fontSize: 20,
-    lineHeight: 1.15,
-    color: COLORS.paper,
-    letterSpacing: 0.5,
-  },
-  tagline: {
-    fontFamily: FONTS.band,
-    fontSize: 9,
-    color: '#D8D8D8',
-    letterSpacing: 1.4,
-    marginTop: 3,
-  },
-  headerMark: { width: 60, height: 52 },
-  goldRuleWrap: { width: CONTENT_WIDTH_PT, marginLeft: PAGE.margin.left, flexDirection: 'row', marginTop: 6 },
-  goldRuleSeg: { height: 1.5, flex: 1 },
+  headerBandImg: { width: PAGE.widthPt, height: 125 },
 
-  // ---- footer band (inset to margins, 03 §2.2) ----
-  footerFixed: { position: 'absolute', bottom: 0, left: 0, width: PAGE.widthPt },
-  footerBand: {
-    marginLeft: PAGE.margin.left,
-    width: CONTENT_WIDTH_PT,
-    minHeight: 58,
-    backgroundColor: COLORS.band,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  footerMark: { width: 78, height: 40, marginRight: 14 },
-  footerCol: { flex: 1, marginRight: 10 },
-  footerLabel: { fontFamily: FONTS.body, fontWeight: 700, fontSize: 9, color: COLORS.paper, marginRight: 4 },
-  footerText: { fontFamily: FONTS.body, fontSize: 9, color: COLORS.paper, lineHeight: 1.35 },
-  goldInfoBand: {
-    marginLeft: PAGE.margin.left,
-    width: CONTENT_WIDTH_PT,
-    height: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.gold,
-    paddingHorizontal: 8,
-  },
-  goldInfoText: { fontFamily: FONTS.body, fontSize: 8, color: COLORS.paper, letterSpacing: 0.3 },
+  // ---- footer strip (03 §2.4) ----
+  // The reference footer is a single full-width gold/black info strip (WWW · VAT · AC · CR
+  // baked into the graphic), sitting a little above the page bottom edge — no black address
+  // band (that lives in the entity/signoff blocks). Quotation strip is 14.7pt tall at 34pt
+  // from the bottom; the proforma strip is taller (25.5pt at 25pt).
+  footerFixed: { position: 'absolute', bottom: 34, left: 0, width: PAGE.widthPt },
+  footerStrip: { width: PAGE.widthPt, height: 14.7 },
+  footerFixedPro: { position: 'absolute', bottom: 25, left: 0, width: PAGE.widthPt },
+  footerStripPro: { width: PAGE.widthPt, height: 25.5 },
 
   // ---- title strip (03 §3.1) ----
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
@@ -127,77 +85,57 @@ export const styles = StyleSheet.create({
   clause: { fontFamily: FONTS.body, fontSize: 9.5, color: COLORS.ink, lineHeight: 1.4, marginBottom: 3 },
   closing: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.ink, lineHeight: 1.45, marginTop: 12, marginBottom: 14 },
   signoffLine: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.ink, lineHeight: 1.4 },
+  signoffName: { fontFamily: FONTS.body, fontWeight: 700, fontSize: 10, color: COLORS.ink, lineHeight: 1.4 },
 });
 
-/** Nested right-pointing chevrons bleeding off the left edge (vector). */
-export function ChevronMotif() {
-  const greys = [COLORS.paper, '#CFCFCF', '#9A9A9A', '#6E6E6E', '#4A4A4A'];
+/**
+ * Renders a user free-text string with inline **bold** / __underline__ / *italic* runs.
+ * Plain text (no tokens) collapses to a single run, so output is byte-identical to the
+ * old `<Text style>{value}</Text>`. `style` is applied to the wrapper and inherited by runs.
+ */
+export function Inline({ text, style }: { text: string; style?: Style }) {
+  const runs = parseInline(text);
   return (
-    <View style={styles.chevronWrap}>
-      {greys.map((color, i) => (
-        <View
-          key={i}
-          style={[
-            styles.chevron,
-            {
-              left: 10 + i * 16,
-              top: 22,
-              borderTopColor: color,
-              borderRightColor: color,
-            },
-          ]}
-        />
-      ))}
-    </View>
+    <Text style={style}>
+      {runs.map((r, i) => {
+        const run: Style = {};
+        if (r.bold) run.fontWeight = 700;
+        if (r.italic) run.fontStyle = 'italic';
+        if (r.underline) run.textDecoration = 'underline';
+        const hasStyle = r.bold || r.italic || r.underline;
+        return (
+          <Text key={i} style={hasStyle ? run : undefined}>
+            {r.text}
+          </Text>
+        );
+      })}
+    </Text>
   );
 }
 
-export function HeaderBand({ profile, assets }: { profile: CompanyProfile; assets: PdfAssets }) {
+export function HeaderBand({ assets }: { profile: CompanyProfile; assets: PdfAssets }) {
   return (
     <View fixed style={styles.headerFixed}>
-      <View style={styles.headerBand}>
-        <ChevronMotif />
-        <View style={styles.headerTitles}>
-          <Text style={styles.companyName}>{profile.legalNameEn}</Text>
-          <Text style={styles.tagline}>{profile.tagline}</Text>
-        </View>
-        <Image style={styles.headerMark} src={assets.headerMark} />
-      </View>
-      <View style={styles.goldRuleWrap}>
-        {[COLORS.goldDark, COLORS.gold, COLORS.goldLight].map((c) => (
-          <View key={c} style={[styles.goldRuleSeg, { backgroundColor: c }]} />
-        ))}
-      </View>
+      <Image style={styles.headerBandImg} src={assets.headerBand} />
     </View>
   );
 }
 
-export function FooterBand({ profile, assets }: { profile: CompanyProfile; assets: PdfAssets }) {
-  const contact = [...profile.phone, profile.mobile].filter(Boolean).join(' | ');
+export function FooterBand({
+  assets,
+  variant = 'quotation',
+}: {
+  profile: CompanyProfile;
+  assets: PdfAssets;
+  variant?: 'quotation' | 'proforma';
+}) {
+  const proforma = variant === 'proforma';
   return (
-    <View fixed style={styles.footerFixed}>
-      <View style={styles.footerBand}>
-        <Image style={styles.footerMark} src={assets.footerMark} />
-        <View style={styles.footerCol}>
-          <Text style={styles.footerText}>
-            <Text style={styles.footerLabel}>Address </Text>
-            {profile.addressLines.join(', ')}
-          </Text>
-        </View>
-        <View style={styles.footerCol}>
-          <Text style={styles.footerText}>
-            <Text style={styles.footerLabel}>Contact </Text>
-            {contact}
-          </Text>
-          <Text style={styles.footerText}>{profile.email}</Text>
-        </View>
-      </View>
-      <View style={styles.goldInfoBand}>
-        <Text style={styles.goldInfoText}>{profile.website}</Text>
-        <Text style={styles.goldInfoText}>VAT: {profile.vatNo}</Text>
-        <Text style={styles.goldInfoText}>AC: {profile.iban}</Text>
-        <Text style={styles.goldInfoText}>C.R: {profile.crNo}</Text>
-      </View>
+    <View fixed style={proforma ? styles.footerFixedPro : styles.footerFixed}>
+      <Image
+        style={proforma ? styles.footerStripPro : styles.footerStrip}
+        src={proforma ? assets.footerStripProforma : assets.footerStrip}
+      />
     </View>
   );
 }
@@ -262,7 +200,7 @@ export function LineItemsTable({ lines, totals, variant = 'quotation' }: { lines
         return (
           <View key={line.id} style={[styles.row, i % 2 === 1 ? styles.rowAlt : undefined]}>
             <View style={{ width: LINE_COLUMNS.sno }}><Text style={[styles.cell, styles.cellCenter]}>{i + 1}</Text></View>
-            <View style={{ width: LINE_COLUMNS.description }}><Text style={styles.cell}>{line.description}</Text></View>
+            <View style={{ width: LINE_COLUMNS.description }}><Inline text={line.description} style={styles.cell} /></View>
             <View style={{ width: LINE_COLUMNS.unitPrice }}>
               <Text style={[styles.cell, styles.cellRight]}>{included ? 'included' : formatSar(line.unitPriceHalalas)}</Text>
             </View>

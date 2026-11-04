@@ -8,7 +8,7 @@
 
 import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer';
 import { PAGE, FONTS, COLORS } from './theme';
-import { styles as s, HeaderBand, FooterBand, EntityBlock, LineItemsTable, TotalsStack } from './primitives';
+import { styles as s, HeaderBand, FooterBand, EntityBlock, LineItemsTable, TotalsStack, Inline } from './primitives';
 import { shapeArabicForRender } from '@/lib/rtl';
 import type { PdfInput } from './input';
 
@@ -45,7 +45,7 @@ export function ProformaDoc({ doc, profile, totals, assets }: PdfInput) {
     <Document>
       <Page size={PAGE.size} style={local.page}>
         <HeaderBand profile={profile} assets={assets} />
-        <FooterBand profile={profile} assets={assets} />
+        <FooterBand profile={profile} assets={assets} variant="proforma" />
 
         <View style={s.titleRow}>
           <Text style={[s.titleWord, { fontSize: 34 }]}>PROFORMA INVOICE</Text>
@@ -69,9 +69,9 @@ export function ProformaDoc({ doc, profile, totals, assets }: PdfInput) {
         </View>
 
         <View style={s.metaFull}>
-          <Text style={s.metaValue}>{client.name}</Text>
+          <Inline text={client.name} style={s.metaValue} />
           {client.addressLines.filter(Boolean).map((l, i) => (
-            <Text key={i} style={s.metaValuePlain}>{l}</Text>
+            <Inline key={i} text={l} style={s.metaValuePlain} />
           ))}
         </View>
 
