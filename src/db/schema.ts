@@ -3,15 +3,16 @@
  *
  * These are the forward-looking tables that #10–#12 build on, defined once here so
  * features extend rather than churn the schema. Every row is scoped by `userId`
- * (plain `text`, indexed) for now; the foreign key to the Better Auth `users` table
- * is added in #9 once that table exists — this deliberately avoids an ordering
- * dependency so the DB plumbing can land before auth.
+ * (plain `text`, indexed). #9 added the Better Auth tables below (canonical
+ * `user`/`session`/`account`/`verification`); the feature tables keep `userId` as
+ * plain text rather than a hard FK — that keeps this migration purely additive and
+ * defers FK enforcement to #10 when those tables first receive rows.
  *
- * Placement note (AC-28): this file lives under `src/db`, which is OUTSIDE the
- * deterministic-core scan dirs (`src/lib|domain|pdf`). Timestamps/ids use DB-side
- * defaults (`defaultNow()` / `defaultRandom()`), never JS `Date.now()`/`Math.random()`.
+ * Auth table shape is dictated by Better Auth's Drizzle adapter: tables are resolved
+ * by model name (singular `user`/`session`/`account`/`verification`) and columns are
+ * validated by camelCase property name, so those names are load-bearing, not stylistic.
  */
-import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /** A generated Quotation or Proforma Invoice (#10 KPI + #12 storage reuse). */
 export const documents = pgTable(
@@ -73,11 +74,70 @@ export const signoffBlocks = pgTable(
   (t) => [index('signoff_blocks_user_idx').on(t.userId)],
 );
 
+/**
+ * Better Auth core tables (#9). Ids/timestamps are written by Better Auth, so no
+ * DB-side defaults are required; `emailVerified` still gets a safe default.
+ */
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const session = pgTable('session', {
+  id: text('id').primaryKey(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+});
+
+export const account = pgTable('account', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+  scope: text('scope'),
+  password: text('password'), // hashed credential for email+password sign-in
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const verification = pgTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type ActivityEvent = typeof events.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type SignoffBlock = typeof signoffBlocks.$inferSelect;
+export type AuthUser = typeof user.$inferSelect;
+export type AuthSession = typeof session.$inferSelect;
 
-/** Exported as a single object for `drizzle(client, { schema })` query builders. */
-export const schema = { documents, events, clients, signoffBlocks };
+/**
+ * Aggregated for `drizzle(client, { schema })` and the Better Auth adapter, which
+ * resolves models by these exact singular keys.
+ */
+export const schema = { user, session, account, verification, documents, events, clients, signoffBlocks };
