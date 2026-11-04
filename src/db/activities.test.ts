@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the drizzle client behind a chainable query builder: the point of these
 // tests is the module's own contract (guards, best-effort semantics, folding),
-// not drizzle internals. `isDbConfigured` is flipped via dbConfigured.
-const values = vi.fn().mockResolvedValue(undefined);
+// not drizzle internals. `isDbConfigured` is flipped via dbConfigured. `values`
+// returns a chainable so both logEvent (await .values) and saveDocument
+// (.values.onConflictDoUpdate/.returning) resolve through the same seam.
+const returning = vi.fn().mockResolvedValue([{ id: 'doc-1' }]);
+const onConflictDoUpdate = vi.fn(() => ({ returning }));
+const values = vi.fn(() => ({ onConflictDoUpdate, returning }));
 const insert = vi.fn(() => ({ values }));
 const groupBy = vi.fn().mockResolvedValue([]);
 const where = vi.fn(() => ({ groupBy }));
@@ -17,12 +21,15 @@ vi.mock('@/db/client', async (importOriginal) => {
   return { ...actual, getDb, isDbConfigured: () => dbConfigured };
 });
 
-const { foldEventCounts, deriveKpis, logEvent, eventCounts } = await import('./activities');
+const { foldEventCounts, deriveKpis, logEvent, eventCounts, saveDocument } = await import('./activities');
 
 beforeEach(() => {
   dbConfigured = false;
-  values.mockClear();
-  values.mockResolvedValue(undefined);
+  values.mockReset();
+  values.mockImplementation(() => ({ onConflictDoUpdate, returning }));
+  onConflictDoUpdate.mockClear();
+  returning.mockClear();
+  returning.mockResolvedValue([{ id: 'doc-1' }]);
   insert.mockClear();
   select.mockClear();
   groupBy.mockResolvedValue([]);
@@ -132,5 +139,54 @@ describe('eventCounts (#10)', () => {
     expect(select).toHaveBeenCalled();
     expect(groupBy).toHaveBeenCalled();
     expect(counts.byType.draft_saved).toBe(2); // string counts from Postgres coerce fine
+  });
+});
+
+describe('saveDocument (#10 slice 3)', () => {
+  it('is a best-effort no-op (null) when the DB is not configured', async () => {
+    await expect(
+      saveDocument({ userId: 'u1', kind: 'quotation', number: 'ENCM-26-6879', payload: {} }),
+    ).resolves.toBeNull();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('upserts on the (userId, kind, number) business key and returns the row id', async () => {
+    dbConfigured = true;
+    const id = await saveDocument({
+      userId: 'u1',
+      kind: 'quotation',
+      number: 'ENCM-26-6879',
+      clientName: 'Turtle Bay',
+      payload: { meta: { docNo: 'ENCM-26-6879' } },
+    });
+    expect(id).toBe('doc-1');
+    expect(onConflictDoUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: expect.any(Array),
+        set: expect.objectContaining({ clientName: 'Turtle Bay' }),
+      }),
+    );
+  });
+
+  it('plain-inserts (no upsert) when the document has no number', async () => {
+    dbConfigured = true;
+    const id = await saveDocument({ userId: 'u1', kind: 'proforma', number: null, payload: {} });
+    expect(id).toBe('doc-1');
+    expect(onConflictDoUpdate).not.toHaveBeenCalled();
+  });
+
+  it('trims a blank number to the no-key path', async () => {
+    dbConfigured = true;
+    await saveDocument({ userId: 'u1', kind: 'quotation', number: '   ', payload: {} });
+    expect(onConflictDoUpdate).not.toHaveBeenCalled();
+    expect(values).toHaveBeenCalledWith(expect.objectContaining({ number: null }));
+  });
+
+  it('swallows write failures and returns null', async () => {
+    dbConfigured = true;
+    returning.mockRejectedValueOnce(new Error('unique violation'));
+    await expect(
+      saveDocument({ userId: 'u1', kind: 'quotation', number: 'X', payload: {} }),
+    ).resolves.toBeNull();
   });
 });

@@ -135,7 +135,11 @@ export function Wizard() {
       a.download = filename;
       a.click();
       setStatus(`Downloaded ${filename}`);
-      void logActivity('exported', { docKind: state.doc.template }); // #10 KPI source
+      // #10: a Download is the definitive "generated" event — it logs 'exported'
+      // for the KPI tiles and persists the document payload ('document_saved') so
+      // #12 can re-render the PDF on open. Both are fire-and-forget.
+      void logActivity('exported', { docKind: state.doc.template });
+      void logActivity('document_saved', { docKind: state.doc.template, payload: state.doc });
     } catch (err) {
       setStatus(`Render failed: ${err instanceof Error ? err.message : String(err)}`);
     }

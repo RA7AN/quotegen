@@ -3,6 +3,7 @@
  */
 
 import Link from 'next/link';
+import { KpiStrip } from './kpi-strip';
 
 export default function Page() {
   return (
@@ -27,6 +28,7 @@ export default function Page() {
           Company settings
         </Link>
       </div>
+      <KpiStrip />
     </main>
   );
 }

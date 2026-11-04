@@ -1,0 +1,2 @@
+ALTER TABLE "documents" ADD CONSTRAINT "documents_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "documents_user_kind_number_uq" ON "documents" USING btree ("user_id","kind","number");

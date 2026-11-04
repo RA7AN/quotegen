@@ -15,6 +15,13 @@
       "when": 1793814643326,
       "tag": "0001_chemical_speedball",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793825555934,
+      "tag": "0002_lonely_daredevil",
+      "breakpoints": true
     }
   ]
 }

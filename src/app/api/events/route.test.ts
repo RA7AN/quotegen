@@ -10,9 +10,10 @@ vi.mock('@/auth/session', async (importOriginal) => {
 });
 
 const logEvent = vi.fn();
+const saveDocument = vi.fn();
 const EVENT_KINDS = ['exported', 'draft_saved', 'snapshot_saved', 'document_saved'] as const;
 const DOC_KINDS = ['quotation', 'proforma'] as const;
-vi.mock('@/db/activities', () => ({ logEvent, EVENT_KINDS, DOC_KINDS }));
+vi.mock('@/db/activities', () => ({ logEvent, saveDocument, EVENT_KINDS, DOC_KINDS }));
 
 const { POST } = await import('./route');
 const { UnauthorizedError } = await import('@/auth/session');
@@ -20,6 +21,7 @@ const { UnauthorizedError } = await import('@/auth/session');
 beforeEach(() => {
   requireSessionUser.mockReset();
   logEvent.mockReset();
+  saveDocument.mockReset();
 });
 
 function request(body: unknown): Request {
@@ -63,7 +65,7 @@ describe('POST /api/events (#10 slice 1)', () => {
       request({ kind: 'exported', docKind: 'quotation', documentId: 'abc' }),
     );
     expect(res.status).toBe(202);
-    await expect(res.json()).resolves.toEqual({ ok: true });
+    await expect(res.json()).resolves.toEqual({ ok: true, documentId: 'abc' });
     expect(logEvent).toHaveBeenCalledWith({
       userId: 'u1',
       kind: 'exported',
@@ -72,12 +74,54 @@ describe('POST /api/events (#10 slice 1)', () => {
     });
   });
 
+  it('persists the document row for a document_saved event and links the row id', async () => {
+    requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
+    saveDocument.mockResolvedValue('row-9');
+    logEvent.mockResolvedValue(true);
+    const res = await POST(
+      request({
+        kind: 'document_saved',
+        docKind: 'quotation',
+        payload: { meta: { docNo: 'ENCM-26-6879' }, client: { name: 'Turtle Bay' } },
+      }),
+    );
+    expect(res.status).toBe(202);
+    await expect(res.json()).resolves.toEqual({ ok: true, documentId: 'row-9' });
+    expect(saveDocument).toHaveBeenCalledWith({
+      userId: 'u1',
+      kind: 'quotation',
+      number: 'ENCM-26-6879',
+      clientName: 'Turtle Bay',
+      payload: { meta: { docNo: 'ENCM-26-6879' }, client: { name: 'Turtle Bay' } },
+    });
+    // event links to the fresh row id, not the (absent) client echo
+    expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ documentId: 'row-9' }));
+  });
+
+  it('does not persist for non-document kinds even with a stray payload', async () => {
+    requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
+    logEvent.mockResolvedValue(true);
+    const res = await POST(request({ kind: 'exported', docKind: 'quotation', payload: { x: 1 } }));
+    expect(res.status).toBe(202);
+    expect(saveDocument).not.toHaveBeenCalled();
+  });
+
+  it('logs the event with a null id when persistence fails (best-effort)', async () => {
+    requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
+    saveDocument.mockResolvedValue(null); // DB unconfigured / write failed
+    logEvent.mockResolvedValue(false);
+    const res = await POST(request({ kind: 'document_saved', docKind: 'quotation', payload: {} }));
+    expect(res.status).toBe(202);
+    await expect(res.json()).resolves.toEqual({ ok: false, documentId: null });
+    expect(logEvent).toHaveBeenCalledWith(expect.objectContaining({ documentId: null }));
+  });
+
   it('still answers 202 when logging no-ops (best-effort telemetry)', async () => {
     requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
     logEvent.mockResolvedValue(false);
     const res = await POST(request({ kind: 'draft_saved' }));
     expect(res.status).toBe(202);
-    await expect(res.json()).resolves.toEqual({ ok: false });
+    await expect(res.json()).resolves.toEqual({ ok: false, documentId: null });
     expect(logEvent).toHaveBeenCalledWith({
       userId: 'u1',
       kind: 'draft_saved',

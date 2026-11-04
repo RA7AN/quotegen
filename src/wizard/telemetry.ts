@@ -19,7 +19,7 @@ export type ActivityDocKind = 'quotation' | 'proforma';
 
 export async function logActivity(
   kind: ActivityKind,
-  opts?: { docKind?: ActivityDocKind; documentId?: string },
+  opts?: { docKind?: ActivityDocKind; documentId?: string; payload?: unknown },
 ): Promise<void> {
   try {
     const { data } = await getSession();
@@ -29,7 +29,12 @@ export async function logActivity(
     await fetch('/api/events', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kind, docKind: opts?.docKind ?? null, documentId: opts?.documentId ?? null }),
+      body: JSON.stringify({
+        kind,
+        docKind: opts?.docKind ?? null,
+        documentId: opts?.documentId ?? null,
+        ...(opts?.payload !== undefined ? { payload: opts.payload } : {}),
+      }),
     });
   } catch {
     // Best-effort by contract: logging failures are silently ignored.

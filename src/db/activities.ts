@@ -16,7 +16,7 @@
  */
 import { eq, count } from 'drizzle-orm';
 import { getDb, isDbConfigured } from './client';
-import { events } from './schema';
+import { documents, events } from './schema';
 
 export const EVENT_KINDS = ['exported', 'draft_saved', 'snapshot_saved', 'document_saved'] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
@@ -54,6 +54,50 @@ export async function logEvent(args: LogEventArgs): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Persist (or refresh) a generated document for a signed-in user (#10 slice 3),
+ * enabling the re-render-on-open flow of #12 from `payload`. Upsert is keyed on
+ * (userId, kind, number) — the unique index added with the deferred FK migration —
+ * so repeated exports of the same doc number refresh rather than duplicate the row.
+ * A document without a number still gets stored (plain insert, fresh row each time),
+ * since the number is the only available business key. Best-effort like logEvent:
+ * returns the row id on success, null on any failure or unconfigured DB.
+ */
+export async function saveDocument(args: {
+  userId: string;
+  kind: DocKind;
+  number?: string | null;
+  clientName?: string | null;
+  payload: unknown;
+}): Promise<string | null> {
+  if (!isDbConfigured()) return null;
+  const number = args.number?.trim() || null;
+  const row = {
+    userId: args.userId,
+    kind: args.kind,
+    number,
+    clientName: args.clientName ?? null,
+    payload: args.payload,
+  };
+  try {
+    if (number) {
+      const [saved] = await getDb()
+        .insert(documents)
+        .values(row)
+        .onConflictDoUpdate({
+          target: [documents.userId, documents.kind, documents.number],
+          set: { payload: args.payload, clientName: args.clientName ?? null, updatedAt: new Date() },
+        })
+        .returning({ id: documents.id });
+      return saved?.id ?? null;
+    }
+    const [saved] = await getDb().insert(documents).values(row).returning({ id: documents.id });
+    return saved?.id ?? null;
+  } catch {
+    return null;
   }
 }
 
