@@ -7,8 +7,9 @@
  *                       asserts page counts, media box, verbatim strings, section order
  *                       (AC-14, AC-16..18, AC-20 via text extraction, AC-22, AC-27, EC-7)
  *  3. Determinism     — render each fixture twice; identical text + page counts (AC-6, EC-14)
- *  4. Static gates    — banned deps (AC-25), no clock/random in render path (AC-28), no
- *                       API routes (AC-24), no alert/confirm in code (AC-9)
+ *  4. Static gates    — banned deps (AC-25), no clock/random in render path (AC-28),
+ *                       server code confined to the api/db/auth boundary (AC-24), no
+ *                       alert/confirm in code (AC-9)
  *
  * Step 5 (unit suite) is chained by the npm script: `vitest run`.
  * Exit 0 = automated pass; a per-AC table is printed for the reviewer.
@@ -335,7 +336,7 @@ await check('AC-6/EC-14', 'determinism: second render identical (text + page cou
 });
 
 // ---------------------------------------------------------------------------
-// Gate 4 — static gates (AC-24, AC-25, AC-28, AC-9)
+// Gate 4 — static gates (AC-24 server boundary, AC-25, AC-28, AC-9)
 // ---------------------------------------------------------------------------
 
 function walk(dir: string, exts?: string[]): string[] {
@@ -380,10 +381,32 @@ await check('AC-28', 'static: no Date.now()/Math.random() in src/lib|domain|pdf'
   return `${files.length} files scanned`;
 });
 
-await check('AC-24', 'static: no route.ts under src/app (zero backend)', () => {
-  const routes = walk(path.join(srcRoot, 'app')).filter((f) => /route\.(ts|tsx)$/.test(f));
-  assert(routes.length === 0, `API routes found: ${routes.join(', ')}`);
-  return 'no API route files';
+await check('AC-24', 'static: server code confined to the api/db/auth boundary; core stays pure', () => {
+  const appDir = path.join(srcRoot, 'app');
+
+  // 1) Route handlers may only live under src/app/api/** (no stray server entry points).
+  const routes = walk(appDir).filter((f) => /route\.(ts|tsx)$/.test(f));
+  const outsideApi = routes
+    .map((f) => path.relative(appDir, f))
+    .filter((rel) => !rel.startsWith(`api${path.sep}`))
+    .map((rel) => path.relative(srcRoot, path.join(appDir, rel)));
+  assert(outsideApi.length === 0, `routes outside src/app/api: ${outsideApi.join(', ')}`);
+
+  // 2) The deterministic core (src/lib|domain|pdf) must NOT import server-only modules
+  //    (@/db, @/auth, @/server, route handlers, or next/server). This is what keeps the
+  //    static->serverful shift from leaking I/O into the byte-stable PDF/calc path.
+  const serverImport = /from\s+['"]@\/(?:db|auth|server)(?:\/|[^'"]*[^'"])['"]|from\s+['"]next\/server['"]|\/route(?:\.ts)?['"]/;
+  const coreFiles = ['lib', 'domain', 'pdf'].flatMap((d) => walk(path.join(srcRoot, d), ['.ts', '.tsx']));
+  const leaks = coreFiles
+    .filter((f) => serverImport.test(stripComments(readFileSync(f, 'utf8'))))
+    .map((f) => path.relative(srcRoot, f));
+  assert(leaks.length === 0, `server-only imports leak into deterministic core: ${leaks.join(', ')}`);
+
+  // 3) Build is serverful: next.config must no longer set output: 'export' (code, not prose).
+  const cfg = stripComments(readFileSync(path.join(repoRoot, 'next.config.ts'), 'utf8'));
+  assert(!/output:\s*'export'/.test(cfg), "next.config still sets output: 'export'");
+
+  return `${routes.length} route file(s) under api; ${coreFiles.length} core files import-boundary clean`;
 });
 
 await check('AC-9', 'static: no alert()/confirm() calls in app code', () => {
