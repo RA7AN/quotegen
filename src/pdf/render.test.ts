@@ -136,4 +136,21 @@ describe('PDF render — platform invariants', () => {
     expect(text).not.toContain('**');
     expect(text).not.toContain('__');
   });
+
+  it('sign-off: email + website render lower-cased regardless of input case', async () => {
+    const d = doc({
+      closing: {
+        signoff: 'Best regards,',
+        name: 'Ops',
+        org: 'Encompass',
+        mobile: '+966 50 000 0000',
+        email: 'INFO@ENCOMPASSGROUPSA.COM',
+        website: 'WWW.ENCOMPASSGROUPSA.COM',
+      },
+    });
+    const { text } = await render(d);
+    expect(text).toContain('info@encompassgroupsa.com');
+    expect(text).toContain('www.encompassgroupsa.com');
+    expect(text).not.toContain('INFO@ENCOMPASSGROUPSA.COM'); // sign-off run is normalised
+  });
 });

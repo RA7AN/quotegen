@@ -85,6 +85,7 @@ export const styles = StyleSheet.create({
   clause: { fontFamily: FONTS.body, fontSize: 9.5, color: COLORS.ink, lineHeight: 1.4, marginBottom: 3 },
   closing: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.ink, lineHeight: 1.45, marginTop: 12, marginBottom: 14 },
   signoffLine: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.ink, lineHeight: 1.4 },
+  signoffName: { fontFamily: FONTS.body, fontWeight: 700, fontSize: 10, color: COLORS.ink, lineHeight: 1.4 },
 });
 
 /**

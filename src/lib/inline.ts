@@ -8,7 +8,7 @@
  *
  *   **bold**        → bold (renders with the 700 face)
  *   __underline__   → underline (textDecoration, no extra face needed)
- *   *italic*        → italic (needs an italic face; see theme.ts — currently renders upright)
+ *   *italic*        → italic (renders with the registered Arimo italic face; see theme.ts)
  *
  * Parsing is non-nested and left-to-right. Unpaired tokens are emitted literally, so any
  * input without markup round-trips to a single run identical to the raw string. No

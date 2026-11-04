@@ -91,11 +91,11 @@ export function QuotationDoc({ doc, profile, totals, assets }: PdfInput) {
 
         <View>
           <Inline text={closing.signoff} style={s.signoffLine} />
-          {closing.name ? <Inline text={closing.name} style={s.signoffLine} /> : null}
+          {closing.name ? <Inline text={closing.name} style={s.signoffName} /> : null}
           {closing.org ? <Text style={s.signoffLine}>{closing.org}</Text> : null}
           {closing.mobile ? <Text style={s.signoffLine}>Mob: {closing.mobile}</Text> : null}
-          {closing.email ? <Text style={s.signoffLine}>{closing.email}</Text> : null}
-          {closing.website ? <Text style={s.signoffLine}>{closing.website}</Text> : null}
+          {closing.email ? <Text style={s.signoffLine}>{closing.email.toLowerCase()}</Text> : null}
+          {closing.website ? <Text style={s.signoffLine}>{closing.website.toLowerCase()}</Text> : null}
         </View>
       </Page>
     </Document>

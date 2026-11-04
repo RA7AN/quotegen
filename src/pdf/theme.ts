@@ -45,7 +45,9 @@ export const FONTS = {
 /** Bundled font files (public/fonts/*). */
 export const FONT_FILES = {
   arimoRegular: 'Arimo-Regular.ttf',
+  arimoItalic: 'Arimo-Italic.ttf',
   arimoBold: 'Arimo-Bold.ttf',
+  arimoBoldItalic: 'Arimo-BoldItalic.ttf',
   openSansRegular: 'OpenSans-Regular.ttf',
   openSansBold: 'OpenSans-Bold.ttf',
   arabicRegular: 'NotoSansArabic-Regular.ttf',
@@ -63,8 +65,10 @@ export function registerFonts(resolve: (file: string) => string): void {
   Font.register({
     family: FONTS.body,
     fonts: [
-      { src: resolve(FONT_FILES.arimoRegular), fontWeight: 400 },
-      { src: resolve(FONT_FILES.arimoBold), fontWeight: 700 },
+      { src: resolve(FONT_FILES.arimoRegular), fontWeight: 400, fontStyle: 'normal' },
+      { src: resolve(FONT_FILES.arimoItalic), fontWeight: 400, fontStyle: 'italic' },
+      { src: resolve(FONT_FILES.arimoBold), fontWeight: 700, fontStyle: 'normal' },
+      { src: resolve(FONT_FILES.arimoBoldItalic), fontWeight: 700, fontStyle: 'italic' },
     ],
   });
   Font.register({
