@@ -1,0 +1,83 @@
+{
+  "rows": [
+    {
+      "name": "Q-6824",
+      "lines": [
+        { "id": "o1", "description": "Worktop", "uom": "u", "qtyHundredths": 100, "unitPriceHalalas": 530000, "pricing": "rated" }
+      ],
+      "commercials": { "discountMode": "none", "discountValue": 0, "vatBps": 1500, "paymentTermsText": [], "advanceSplits": [] },
+      "expect": {
+        "totalHalalas": 530000,
+        "total": "5,300.00",
+        "vatHalalas": 79500,
+        "vat": "795.00",
+        "grandHalalas": 609500,
+        "grand": "6,095.00"
+      }
+    },
+    {
+      "name": "Q-6879",
+      "lines": [
+        { "id": "o2a", "description": "Granite cladding", "uom": "u", "qtyHundredths": 100, "unitPriceHalalas": 1950000, "pricing": "rated" },
+        { "id": "o2b", "description": "Skirting", "uom": "m", "qtyHundredths": 5000, "unitPriceHalalas": 110000, "pricing": "rated" }
+      ],
+      "commercials": { "discountMode": "none", "discountValue": 0, "vatBps": 1500, "paymentTermsText": [], "advanceSplits": [] },
+      "expect": {
+        "totalHalalas": 7450000,
+        "total": "74,500.00",
+        "vatHalalas": 1117500,
+        "vat": "11,175.00",
+        "grandHalalas": 8567500,
+        "grand": "85,675.00"
+      }
+    },
+    {
+      "name": "PF-5799",
+      "lines": [
+        { "id": "o3a", "description": "Design package", "uom": "u", "qtyHundredths": 100, "unitPriceHalalas": 0, "pricing": "included" },
+        { "id": "o3b", "description": "Site survey", "uom": "u", "qtyHundredths": 100, "unitPriceHalalas": 0, "pricing": "included" },
+        { "id": "o3c", "description": "Fit-out execution", "uom": "u", "qtyHundredths": 100, "unitPriceHalalas": 5553000, "pricing": "rated" }
+      ],
+      "commercials": {
+        "discountMode": "none",
+        "discountValue": 0,
+        "vatBps": 1500,
+        "paymentTermsText": [],
+        "advanceSplits": [{ "label": "70% Advance", "percentHundredths": 7000 }]
+      },
+      "expect": {
+        "totalHalalas": 5553000,
+        "total": "55,530.00",
+        "vatHalalas": 832950,
+        "vat": "8,329.50",
+        "grandHalalas": 6385950,
+        "grand": "63,859.50",
+        "splits": [{ "label": "70% Advance", "halalas": 4470165, "formatted": "44,701.65" }]
+      }
+    }
+  ],
+  "lineCases": [
+    {
+      "name": "EC-1 fractional qty (0.5 x 199.99 -> 100.00 half-up)",
+      "qtyRaw": "0.5",
+      "unitRaw": "199.99",
+      "expectPriceHalalas": 10000,
+      "expectPrice": "100.00"
+    },
+    {
+      "name": "EC-2 rounding trap (1.005 x 1 -> 1.01 half-up)",
+      "qtyRaw": "1",
+      "unitRaw": "1.005",
+      "expectPriceHalalas": 101,
+      "expectPrice": "1.01"
+    }
+  ],
+  "splitCases": [
+    {
+      "name": "EC-3 split that doesn't divide evenly (100.00 as 33/33/34)",
+      "grandHalalas": 10000,
+      "percentHundredths": [3300, 3300, 3400],
+      "expectHalalas": [3300, 3300, 3400]
+    }
+  ]
+}

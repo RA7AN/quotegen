@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "template": "proforma",
+  "meta": {
+    "docNo": "5799-00",
+    "quoteDateISO": "2026-10-17",
+    "validUntilISO": "2026-11-16",
+    "subject": "Fit-out works",
+    "attn": ""
+  },
+  "client": {
+    "name": "Turtle Bay Hotel (TBH)",
+    "addressLines": ["Jeddah"],
+    "custId": "0020TBH",
+    "city": "Jeddah",
+    "crNo": "4701102147"
+  },
+  "lines": [
+    {
+      "id": "hp3-l1",
+      "description": "Design package and shop drawings for the fit-out scope",
+      "uom": "u",
+      "qtyHundredths": 100,
+      "unitPriceHalalas": 0,
+      "pricing": "included"
+    },
+    {
+      "id": "hp3-l2",
+      "description": "Site survey and as-measured verification",
+      "uom": "u",
+      "qtyHundredths": 100,
+      "unitPriceHalalas": 0,
+      "pricing": "included"
+    },
+    {
+      "id": "hp3-l3",
+      "description": "Execution of fit-out works as per approved BOQ",
+      "uom": "u",
+      "qtyHundredths": 100,
+      "unitPriceHalalas": 5553000,
+      "pricing": "rated"
+    }
+  ],
+  "commercials": {
+    "discountMode": "none",
+    "discountValue": 0,
+    "vatBps": 1500,
+    "paymentTermsText": [],
+    "advanceSplits": [{ "label": "70% Advance", "percentHundredths": 7000 }]
+  },
+  "terms": {
+    "clauses": []
+  },
+  "closing": {
+    "signoff": "Best regards,",
+    "name": "Operations",
+    "org": "Encompass Design and Build",
+    "mobile": "+966 50 000 0000",
+    "email": "info@encompassgroupsa.com",
+    "website": "WWW.ENCOMPASSGROUPSA.COM"
+  }
+}

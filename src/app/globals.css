@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/*
+ * App chrome tokens only. The PDF colours/geometry live in src/pdf/theme.ts and never
+ * read from here — the stylesheet must not be able to alter render output (03 §2).
+ */
+@theme {
+  --color-ink: #000000;
+  --color-muted: #7d7d7d;
+  --color-gold: #a8842c;
+  --color-gold-light: #c9a227;
+  --color-paper: #ffffff;
+  --color-panel: #f7f7f7;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
