@@ -12,7 +12,7 @@
  */
 import { z } from 'zod';
 import { requireSessionUser, UnauthorizedError, type SessionUser } from '@/auth/session';
-import { logEvent, saveDocument, EVENT_KINDS, DOC_KINDS } from '@/db/activities';
+import { logEvent, saveDocument, pruneDocuments, EVENT_KINDS, DOC_KINDS } from '@/db/activities';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +61,15 @@ export async function POST(req: Request): Promise<Response> {
       payload,
     });
     linkedDocumentId = savedId ?? null;
+    // Retention (#12): keep the newest N rows per user so storage stays bounded under
+    // free-tier caps. Best-effort and awaited (never allowed to fail the export).
+    if (savedId) {
+      try {
+        await pruneDocuments(user.id);
+      } catch {
+        /* ignore — pruning is optional cleanup, not part of the accepted write */
+      }
+    }
   }
 
   const logged = await logEvent({
@@ -72,13 +81,22 @@ export async function POST(req: Request): Promise<Response> {
   return Response.json({ ok: logged, documentId: linkedDocumentId }, { status: 202 });
 }
 
-/** Defensive extracts from the opaque payload: strings or null, never throwing. */
+/**
+ * Defensive extracts from the opaque payload: strings or null, never throwing.
+ * Handles the #12 full-input envelope ({ doc, profile }) and the legacy bare-document
+ * shape (#10 slice 3) so the documents.number/client_name columns stay populated.
+ */
+function docOf(payload: unknown): unknown {
+  const maybeDoc = (payload as { doc?: unknown } | null)?.doc;
+  return maybeDoc && typeof maybeDoc === 'object' ? maybeDoc : payload;
+}
+
 function readDocNumber(payload: unknown): string | null {
-  const meta = (payload as { meta?: { docNo?: unknown } } | null)?.meta;
+  const meta = (docOf(payload) as { meta?: { docNo?: unknown } } | null)?.meta;
   return typeof meta?.docNo === 'string' ? meta.docNo : null;
 }
 
 function readClientName(payload: unknown): string | null {
-  const client = (payload as { client?: { name?: unknown } } | null)?.client;
+  const client = (docOf(payload) as { client?: { name?: unknown } } | null)?.client;
   return typeof client?.name === 'string' ? client.name : null;
 }
