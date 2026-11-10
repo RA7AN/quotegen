@@ -22,6 +22,13 @@
       "when": 1793825555934,
       "tag": "0002_lonely_daredevil",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794324205116,
+      "tag": "0003_whole_fixer",
+      "breakpoints": true
     }
   ]
 }

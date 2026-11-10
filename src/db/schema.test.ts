@@ -43,7 +43,8 @@ describe('db schema — column shape', () => {
   });
 
   it('clients / signoffBlocks store a jsonb blob + name/label', () => {
-    expect(colsOf(clients)).toEqual(['createdAt', 'data', 'id', 'name', 'updatedAt', 'userId']);
+    // clients gains custId (#11 slice 1) — the (userId, name, custId) dedupe business key.
+    expect(colsOf(clients)).toEqual(['createdAt', 'custId', 'data', 'id', 'name', 'updatedAt', 'userId']);
     expect(colsOf(signoffBlocks)).toEqual(['createdAt', 'data', 'id', 'label', 'updatedAt', 'userId']);
   });
 
