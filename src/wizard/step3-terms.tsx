@@ -5,15 +5,19 @@
  * removable but the app warns first via ConfirmDialog. The old "Execution Time" clause is
  * now a muted suggestion the user can accept (inserted before the last default) or dismiss.
  * "Restore default clauses" re-adds any missing fixed defaults without touching the user's
- * own clauses. The sign-off block lives here too. This step never blocks navigation.
+ * own clauses. The sign-off block lives here too, with a saved-blocks picker (#11 slice 4)
+ * that autofills the closing and removes stored blocks behind a ConfirmDialog. This step
+ * never blocks navigation.
  */
 
 import { useState } from 'react';
 import { TextField, RichInput, RichTextArea, inputClass } from './fields';
 import { ConfirmDialog } from './confirm-dialog';
+import { SignoffPicker } from './signoff-picker';
 import type { ReactNode } from 'react';
 import type { WizardAction } from './state';
-import type { QuoteDocument } from '@/domain/types';
+import type { Closing, QuoteDocument } from '@/domain/types';
+import type { StoredSignoff } from './library';
 import {
   DEFAULT_FIRST_CLAUSE,
   DEFAULT_LAST_CLAUSE,
@@ -22,7 +26,19 @@ import {
 
 const isDefaultClause = (t: string) => t === DEFAULT_FIRST_CLAUSE || t === DEFAULT_LAST_CLAUSE;
 
-export function Step3Terms({ doc, dispatch }: { doc: QuoteDocument; dispatch: (a: WizardAction) => void }) {
+export function Step3Terms({
+  doc,
+  dispatch,
+  savedSignoffs = [],
+  onPickSignoff,
+  onRemoveSignoff,
+}: {
+  doc: QuoteDocument;
+  dispatch: (a: WizardAction) => void;
+  savedSignoffs?: StoredSignoff[];
+  onPickSignoff?: (block: Closing) => void;
+  onRemoveSignoff?: (id: string) => void;
+}) {
   const clauses = doc.terms.clauses;
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [pendingRemove, setPendingRemove] = useState<number | null>(null);
@@ -146,6 +162,7 @@ export function Step3Terms({ doc, dispatch }: { doc: QuoteDocument; dispatch: (a
 
       <section className="space-y-3 rounded border border-neutral-200 p-3">
         <h3 className="text-xs font-bold uppercase tracking-wide text-muted">Sign-off block</h3>
+        <SignoffPicker blocks={savedSignoffs} onPick={(b) => onPickSignoff?.(b)} onRemove={(id) => onRemoveSignoff?.(id)} />
         <RichInput label="Sign-off line" value={doc.closing.signoff} onChange={(v) => dispatch({ type: 'setClosing', patch: { signoff: v } })} />
         <RichInput label="Name" value={doc.closing.name} onChange={(v) => dispatch({ type: 'setClosing', patch: { name: v } })} />
         <TextField label="Organisation" value={doc.closing.org} onChange={(v) => dispatch({ type: 'setClosing', patch: { org: v } })} />

@@ -39,13 +39,17 @@ import {
   type WizardStep,
 } from '@/lib/storage';
 import type { PdfAssets } from '@/pdf/primitives';
-import type { Client, LineItem, QuoteDocument } from '@/domain/types';
+import type { Client, Closing, LineItem, QuoteDocument } from '@/domain/types';
 import { logActivity } from './telemetry';
 import {
   fetchClients,
   saveClient,
   removeClient,
+  fetchSignoffs,
+  saveSignoff,
+  removeSignoff,
   type StoredClient,
+  type StoredSignoff,
 } from './library';
 
 // Browser font registration: bundled TTFs served from /fonts/* (02 §5.5). Idempotent.
@@ -73,6 +77,7 @@ export function Wizard() {
   const draftLogged = useRef(false); // one draft_saved event per wizard session (#10)
   const lastBlobUrl = useRef<string | null>(null);
   const [savedClients, setSavedClients] = useState<StoredClient[]>([]);
+  const [savedSignoffs, setSavedSignoffs] = useState<StoredSignoff[]>([]);
   const [reuseNotice, setReuseNotice] = useState('');
 
   const dispatch = (a: Parameters<typeof dispatchRaw>[0]) => {
@@ -93,11 +98,12 @@ export function Wizard() {
     hydrated.current = true;
   }, [draftRef]);
 
-  // Load the user's saved client library once on mount (#11 slice 3). Best-effort and
-  // session-checked inside fetchClients, so anonymous/unconfigured runs skip the request
-  // and leave the picker empty. Runs client-only (useEffect), never during prerender.
+  // Load the user's saved client & sign-off libraries once on mount (#11 slices 3-4).
+  // Best-effort and session-checked inside each fetch, so anonymous/unconfigured runs skip
+  // the requests and leave the pickers empty. Runs client-only (useEffect), never prerender.
   useEffect(() => {
     void fetchClients().then(setSavedClients);
+    void fetchSignoffs().then(setSavedSignoffs);
   }, []);
 
   // Debounced autosave on every change once the doc is dirty (FR-6.1) — a pristine
@@ -144,6 +150,29 @@ export function Wizard() {
     setReuseNotice('Removed saved client.');
   };
 
+  // Mirrors upsertSignoffBlock's store rule: a block with neither name nor email is never
+  // saved, so we skip the round-trip (and the toast) for a default/empty closing.
+  const autoSaveSignoff = async (block: Closing): Promise<void> => {
+    const name = block.name.trim();
+    const email = block.email.trim();
+    if (!name && !email) return;
+    const ok = await saveSignoff(block);
+    if (ok) {
+      setSavedSignoffs(await fetchSignoffs());
+      setReuseNotice(`Saved sign-off block “${name || email}”.`);
+    }
+  };
+
+  const pickSignoff = (block: Closing): void => {
+    dispatch({ type: 'setClosing', patch: block });
+    setReuseNotice(`Loaded sign-off block “${block.name || block.email}”.`);
+  };
+
+  const removeSavedSignoff = (id: string): void => {
+    void removeSignoff(id).then(async () => setSavedSignoffs(await fetchSignoffs()));
+    setReuseNotice('Removed saved sign-off block.');
+  };
+
   const go = (step: WizardStep) => {
     setAttempted((a) => ({ ...a, [state.step]: true }));
     if (step > state.step && Object.keys(validateStep(state.step, state.doc)).length > 0) return; // block + show errors
@@ -151,6 +180,9 @@ export function Wizard() {
     // #11 slice 3: advancing off Step 1 auto-saves the (deduped) client profile. Only on
     // forward nav past a validated step, so half-typed/invalid clients never pile up.
     if (state.step === 1 && step > 1) void autoSaveClient(state.doc.client);
+    // #11 slice 4: same pattern off Step 3 for the (content-deduped) sign-off block. Step 3
+    // has no validation gate, so the blank-block guard inside autoSaveSignoff does the filtering.
+    if (state.step === 3 && step > 3) void autoSaveSignoff(state.doc.closing);
     dispatch({ type: 'goto', step });
   };
 
@@ -321,7 +353,15 @@ export function Wizard() {
           />
         )}
         {state.step === 2 && <Step2Lines doc={state.doc} errors={errors} dispatch={dispatch} onAddLine={addLine} />}
-        {state.step === 3 && <Step3Terms doc={state.doc} dispatch={dispatch} />}
+        {state.step === 3 && (
+          <Step3Terms
+            doc={state.doc}
+            dispatch={dispatch}
+            savedSignoffs={savedSignoffs}
+            onPickSignoff={pickSignoff}
+            onRemoveSignoff={removeSavedSignoff}
+          />
+        )}
         {state.step === 4 && (
           <Step4Review
             input={input}
