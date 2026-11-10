@@ -30,7 +30,7 @@ the data layer uses **Neon Postgres** via **Drizzle** (`src/db`) and SQL migrati
 are part of the repo. Auth is **Better Auth** (`src/auth`, mounted at `/api/auth/[...all]`) with
 **email + password** and password recovery over **Resend** SMTP (issue #9). Set these in the
 Vercel project (see `.env.example`): pooled `DATABASE_URL`, `BETTER_AUTH_SECRET` (generate via
-`npx @better-auth/cli generate-secret`), `BETTER_AUTH_URL` (the deployment URL), and
+`npx @better-auth/cli secret`), `BETTER_AUTH_URL` (the deployment URL), and
 `RESEND_API_KEY` + `EMAIL_FROM` (verify the sender domain's SPF/DKIM in Resend). Apply schema
 with `npm run db:migrate` (creates the feature + Better Auth tables). All auth/DB code is
 placeholder-guarded (`REPLACE_ME`), so the app builds and runs before creds land. The wizard and

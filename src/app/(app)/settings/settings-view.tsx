@@ -1,9 +1,10 @@
 /**
- * app/settings/page.tsx — company profile editor (FR-5.1 / FR-5.2).
+ * app/(app)/settings/settings-view.tsx — company profile editor body (FR-5.1 / FR-5.2).
  *
- * Persists to localStorage via the storage codec; "reset to factory defaults" restores
- * the seeded Encompass/Elaf profile. Logo marks are bundled assets (03 §2) and are
- * shown read-only, not editable.
+ * Client body mounted by the sibling `page.tsx` server wrapper (which owns the session
+ * guard). Persists to localStorage via the storage codec; "reset to factory defaults"
+ * restores the seeded Encompass/Elaf profile. Logo marks are bundled assets (03 §2)
+ * and are shown read-only, not editable.
  */
 
 'use client';
@@ -13,7 +14,7 @@ import { browserKV, loadProfile, resetProfile, writeProfile } from '@/lib/storag
 import { TextField, LinesTextArea } from '@/wizard/fields';
 import type { CompanyProfile } from '@/domain/types';
 
-export default function SettingsPage() {
+export function SettingsView() {
   const [profile, setProfile] = useState<CompanyProfile>(() => loadProfile(browserKV()));
   const [status, setStatus] = useState('');
 

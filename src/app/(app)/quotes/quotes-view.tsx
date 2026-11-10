@@ -1,10 +1,11 @@
 /**
- * app/quotes/page.tsx — saved-snapshot list (FR-6.2 / AC-13, HP-4).
+ * app/(app)/quotes/quotes-view.tsx — saved-snapshot list body (FR-6.2 / AC-13, HP-4).
  *
- * Open seeds the snapshot into the draft and routes to /new (the wizard's resume banner
- * picks it up). Duplicate makes an independent copy under a fresh id; Delete removes
- * the entry. All operations go through the storage codec, which skips unreadable
- * entries instead of crashing (EC-11).
+ * Client body mounted by the sibling `page.tsx` server wrapper (which owns the session
+ * guard). Open seeds the snapshot into the draft and routes to /new (the wizard's
+ * resume banner picks it up). Duplicate makes an independent copy under a fresh id;
+ * Delete removes the entry. All operations go through the storage codec, which skips
+ * unreadable entries instead of crashing (EC-11).
  */
 
 'use client';
@@ -13,7 +14,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { browserKV, deleteQuote, duplicateQuote, listQuotes, openQuoteAsDraft } from '@/lib/storage';
 
-export default function QuotesPage() {
+export function QuotesView() {
   const router = useRouter();
   const [quotes, setQuotes] = useState(() => listQuotes(browserKV()));
 
