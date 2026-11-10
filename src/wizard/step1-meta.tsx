@@ -6,18 +6,26 @@
  */
 
 import { TextField, RichInput, LinesTextArea } from './fields';
+import { ClientPicker } from './client-picker';
 import type { FieldErrors } from './state';
-import type { QuoteDocument } from '@/domain/types';
+import type { Client, QuoteDocument } from '@/domain/types';
+import type { StoredClient } from './library';
 import type { WizardAction } from './state';
 
 export function Step1Meta({
   doc,
   errors,
   dispatch,
+  savedClients = [],
+  onPickClient,
+  onRemoveClient,
 }: {
   doc: QuoteDocument;
   errors: FieldErrors;
   dispatch: (a: WizardAction) => void;
+  savedClients?: StoredClient[];
+  onPickClient?: (client: Client) => void;
+  onRemoveClient?: (id: string) => void;
 }) {
   return (
     <div className="space-y-5">
@@ -69,6 +77,7 @@ export function Step1Meta({
       </div>
 
       <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Client</h3>
+      <ClientPicker clients={savedClients} onPick={(c) => onPickClient?.(c)} onRemove={(id) => onRemoveClient?.(id)} />
       <div className="grid gap-4 sm:grid-cols-2">
         <RichInput
           label="Client name"

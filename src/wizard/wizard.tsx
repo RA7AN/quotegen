@@ -39,8 +39,14 @@ import {
   type WizardStep,
 } from '@/lib/storage';
 import type { PdfAssets } from '@/pdf/primitives';
-import type { LineItem, QuoteDocument } from '@/domain/types';
+import type { Client, LineItem, QuoteDocument } from '@/domain/types';
 import { logActivity } from './telemetry';
+import {
+  fetchClients,
+  saveClient,
+  removeClient,
+  type StoredClient,
+} from './library';
 
 // Browser font registration: bundled TTFs served from /fonts/* (02 §5.5). Idempotent.
 registerFonts((file) => `/fonts/${file}`);
@@ -66,6 +72,8 @@ export function Wizard() {
   const dirty = useRef(false); // autosave only once the user (or a resume) has touched the doc
   const draftLogged = useRef(false); // one draft_saved event per wizard session (#10)
   const lastBlobUrl = useRef<string | null>(null);
+  const [savedClients, setSavedClients] = useState<StoredClient[]>([]);
+  const [reuseNotice, setReuseNotice] = useState('');
 
   const dispatch = (a: Parameters<typeof dispatchRaw>[0]) => {
     dirty.current = true;
@@ -84,6 +92,13 @@ export function Wizard() {
     setProfile(loadProfile(kv));
     hydrated.current = true;
   }, [draftRef]);
+
+  // Load the user's saved client library once on mount (#11 slice 3). Best-effort and
+  // session-checked inside fetchClients, so anonymous/unconfigured runs skip the request
+  // and leave the picker empty. Runs client-only (useEffect), never during prerender.
+  useEffect(() => {
+    void fetchClients().then(setSavedClients);
+  }, []);
 
   // Debounced autosave on every change once the doc is dirty (FR-6.1) — a pristine
   // blank wizard is never persisted, so it can't nag "Resume draft?" next visit.
@@ -108,10 +123,34 @@ export function Wizard() {
   const assets: PdfAssets = { headerMark: profile.logos.headerMark, footerMark: profile.logos.footerMark, headerBand: '/brand/header-band.jpg', footerStrip: '/brand/footer-strip.jpg', footerStripProforma: '/brand/footer-strip-proforma.png' };
   const input = useMemo(() => makeInput(state.doc, profile, assets), [state.doc, profile, assets.headerMark, assets.footerMark, assets.headerBand, assets.footerStrip, assets.footerStripProforma]);
 
+  const autoSaveClient = async (client: Client): Promise<void> => {
+    const name = client.name.trim();
+    if (!name) return; // nothing to save (validateStep1 already gates a blank name)
+    const ok = await saveClient(client);
+    if (ok) {
+      setSavedClients(await fetchClients());
+      setReuseNotice(`Saved client “${name}”.`);
+    }
+  };
+
+  const pickClient = (client: Client): void => {
+    dispatch({ type: 'setClient', patch: { name: client.name, custId: client.custId, city: client.city, crNo: client.crNo } });
+    dispatch({ type: 'setAddressLines', lines: client.addressLines });
+    setReuseNotice(`Loaded “${client.name}”.`);
+  };
+
+  const removeSavedClient = (id: string): void => {
+    void removeClient(id).then(async () => setSavedClients(await fetchClients()));
+    setReuseNotice('Removed saved client.');
+  };
+
   const go = (step: WizardStep) => {
     setAttempted((a) => ({ ...a, [state.step]: true }));
     if (step > state.step && Object.keys(validateStep(state.step, state.doc)).length > 0) return; // block + show errors
     if (step > furthestAllowedStep(state.doc)) return;
+    // #11 slice 3: advancing off Step 1 auto-saves the (deduped) client profile. Only on
+    // forward nav past a validated step, so half-typed/invalid clients never pile up.
+    if (state.step === 1 && step > 1) void autoSaveClient(state.doc.client);
     dispatch({ type: 'goto', step });
   };
 
@@ -262,8 +301,25 @@ export function Wizard() {
         </div>
       )}
 
+      {/* #11 reuse toast: rendered above <main> so the auto-save-then-advance confirmation
+          stays visible after navigation moves off Step 1 (success-only, so green). */}
+      {reuseNotice && (
+        <p role="status" className="mb-4 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">
+          {reuseNotice}
+        </p>
+      )}
+
       <main className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-        {state.step === 1 && <Step1Meta doc={state.doc} errors={errors} dispatch={dispatch} />}
+        {state.step === 1 && (
+          <Step1Meta
+            doc={state.doc}
+            errors={errors}
+            dispatch={dispatch}
+            savedClients={savedClients}
+            onPickClient={pickClient}
+            onRemoveClient={removeSavedClient}
+          />
+        )}
         {state.step === 2 && <Step2Lines doc={state.doc} errors={errors} dispatch={dispatch} onAddLine={addLine} />}
         {state.step === 3 && <Step3Terms doc={state.doc} dispatch={dispatch} />}
         {state.step === 4 && (
