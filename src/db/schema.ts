@@ -5,8 +5,11 @@
  * features extend rather than churn the schema. Every row is scoped by `userId`
  * (indexed). #9 kept the feature tables' `userId` as plain text while they received
  * no rows; #10 slice 3 tightened `documents.userId` to a real FK once document
- * writes went live (migration 0002) — the other feature tables keep plain text
- * until they first receive rows.
+ * writes went live (migration 0002) and #11 slice 1 did the same for `clients.userId`
+ * (migration 0003, alongside the (userId, name, custId) dedupe index) as client
+ * auto-save began writing rows — #11 slice 2 repeats that for `signoff_blocks.userId`
+ * with a content-dedupe index. Only `events` keeps plain text (it is append-only and
+ * already scoped by indexed userId, with no cross-table writes).
  *
  * Auth table shape is dictated by Better Auth's Drizzle adapter: tables are resolved
  * by model name (singular `user`/`session`/`account`/`verification`) and columns are
@@ -69,32 +72,52 @@ export const events = pgTable(
   (t) => [index('events_user_idx').on(t.userId), index('events_user_type_idx').on(t.userId, t.type)],
 );
 
-/** Reusable client profiles, auto-saved + suggested on new creates (#11). */
+/** Reusable client profiles, auto-saved + suggested on new creates (#11 slice 1). */
 export const clients = pgTable(
   'clients',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id').notNull(),
+    // FK enforced since #11 slice 1 — the second feature table to receive rows
+    // (mirrors the deferred documents.userId tightening from #10 slice 3).
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
+    // Business-key half for the dedupe upsert in src/db/clients.ts (upsertClient):
+    // (userId, name, custId). Blank custId is normalized to '' so it joins the key.
+    custId: text('cust_id').notNull().default(''),
     data: jsonb('data').notNull(), // full client object (address, attn, contacts…)
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('clients_user_idx').on(t.userId)],
+  (t) => [
+    index('clients_user_idx').on(t.userId),
+    uniqueIndex('clients_user_name_custid_uq').on(t.userId, t.name, t.custId),
+  ],
 );
 
-/** Reusable sign-off blocks (#11). */
+/** Reusable sign-off blocks (#11 slice 2). */
 export const signoffBlocks = pgTable(
   'signoff_blocks',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: text('user_id').notNull(),
-    label: text('label'), // friendly name for the picker
-    data: jsonb('data').notNull(), // closing / name / email / website fields
+    // FK enforced since #11 slice 2 — the third feature table to receive rows.
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    label: text('label'), // friendly name for the picker (defaults to the signer's name)
+    // Business key for the content-deduped upsert in src/db/signoff.ts: a deterministic
+    // key derived from the normalized closing fields, so re-saving an unchanged block
+    // refreshes its row instead of piling near-duplicates. Blank blocks never get a key.
+    contentKey: text('content_key').notNull(),
+    data: jsonb('data').notNull(), // closing / name / org / mobile / email / website fields
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('signoff_blocks_user_idx').on(t.userId)],
+  (t) => [
+    index('signoff_blocks_user_idx').on(t.userId),
+    uniqueIndex('signoff_blocks_user_content_uq').on(t.userId, t.contentKey),
+  ],
 );
 
 /**

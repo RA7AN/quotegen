@@ -1,0 +1,3 @@
+ALTER TABLE "signoff_blocks" ADD COLUMN "content_key" text NOT NULL;--> statement-breakpoint
+ALTER TABLE "signoff_blocks" ADD CONSTRAINT "signoff_blocks_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "signoff_blocks_user_content_uq" ON "signoff_blocks" USING btree ("user_id","content_key");
