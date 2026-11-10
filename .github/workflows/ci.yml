@@ -3,6 +3,13 @@ name: CI
 # Issue #2 — run the automated gate suite on every PR and push to main.
 # Merge is blocked unless all four gates pass: typecheck, unit tests, the eval
 # harness (calc / render / determinism / static-grep incl. AC-24), and next build.
+#
+# Issue #21 adds a second `migrate` job that boots an empty Postgres 16 service
+# container, applies every committed migration, verifies journal/snapshot
+# consistency via `drizzle-kit check`, then asserts `drizzle-kit generate` is
+# a no-op (schema.ts <-> latest drizzle/meta snapshot must be in lockstep).
+# NOTE (operator): once this PR merges, add `migrate` to the branch-protection
+# required checks alongside `Gate suite` so red = unmergeable.
 on:
   pull_request:
     branches: [main]
@@ -50,3 +57,76 @@ jobs:
 
       - name: Build (next build · server runtime)
         run: npm run build
+
+  # Issue #21 - schema-drift + migration-application gate.
+  #
+  # Runs against a throwaway Postgres 16 on the runner (NOT Neon). The
+  # service container exposes 5432 to the job's localhost, so
+  # `drizzle-kit migrate` connects with plain TCP and no sslmode. Our
+  # migrations only use PG 13+ built-ins (gen_random_uuid, jsonb, btree)
+  # - no pgvector, no CREATE EXTENSION - so postgres:16-alpine suffices.
+  #
+  # Three sequential invariants:
+  #   1. Every drizzle/000*.sql applies cleanly from an empty DB.
+  #   2. `drizzle-kit check` - journal (_journal.json) + snapshot (meta/*.json)
+  #      consistency. Catches hand-edited or orphaned migration entries.
+  #   3. `drizzle-kit generate` is a NO-OP. If schema.ts drifted from the
+  #      committed SQL/snapshot (either direction - schema edited without
+  #      regenerate, or SQL hand-edited without schema update), the second
+  #      generate writes files and the porcelain check trips. This is the
+  #      highest-signal gate; today we have zero CI coverage for that bug class.
+  migrate:
+    name: migrate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: quotegen
+          POSTGRES_PASSWORD: quotegen
+          POSTGRES_DB: quotegen_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U quotegen -d quotegen_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # drizzle.config.ts reads DATABASE_URL; the placeholder fallback in the
+      # config is only for offline `generate`, never reached here.
+      DATABASE_URL: postgresql://quotegen:quotegen@localhost:5432/quotegen_ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply all migrations from zero
+        run: npm run db:migrate
+
+      - name: Check migration journal + snapshot consistency
+        run: npx drizzle-kit check
+
+      - name: Assert schema.ts <-> latest snapshot has no drift
+        # `db:generate` reads schema.ts + the last meta/NNNN_snapshot.json and
+        # writes a new drizzle/000*.sql only if there is real drift. Any change
+        # under drizzle/ after this step means the committed pair is out of
+        # sync, which would let a later migration silently redefine what an
+        # earlier one already did. Fail loudly with a diff.
+        run: |
+          set -euo pipefail
+          npm run db:generate
+          if [ -n "$(git status --porcelain -- drizzle/)" ]; then
+            echo "::error::drizzle-kit generate was not a no-op (schema<->snapshot drift)."
+            echo "Run \`npm run db:generate\` locally and commit the result."
+            git status --porcelain -- drizzle/
+            git diff -- drizzle/ || true
+            exit 1
+          fi
+          echo "drizzle-kit generate is a no-op; schema.ts and drizzle/meta are in lockstep."
