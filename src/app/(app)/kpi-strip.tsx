@@ -1,12 +1,12 @@
 /**
- * app/kpi-strip.tsx — landing KPI strip (#10 slice 3).
+ * app/(app)/kpi-strip.tsx — dashboard KPI strip (#10 slice 3).
  *
- * A client component mounted on the static landing page: on mount it reads
+ * A client component mounted on the signed-in home dashboard: on mount it reads
  * GET /api/events/summary (the browser sends the session cookie) and renders three
  * to-date tiles — quotations generated, proforma invoices generated, drafts saved.
- * Degradation mirrors the data layer: anonymous / signed-out / unconfigured-DB runs
- * get a 401 or zeroed payload and the strip simply does not render, so the landing
- * page never shows a broken/empty frame and prerender stays static.
+ * Degradation mirrors the data layer: a signed-out / unconfigured-DB run gets a 401
+ * or zeroed payload and the strip simply does not render, so the dashboard never
+ * shows a broken/empty frame.
  */
 'use client';
 

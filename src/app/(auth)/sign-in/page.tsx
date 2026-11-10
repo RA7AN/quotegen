@@ -2,8 +2,9 @@
  * app/(auth)/sign-in/page.tsx — email + password sign-in (#9).
  *
  * Client component. Validates inline (AC-9: no native dialogs), then calls the
- * Better Auth client. On success it routes to the wizard and refreshes so server
- * components re-read the new session cookie.
+ * Better Auth client. On success it routes to the signed-in dashboard at /home and
+ * refreshes so server components re-read the new session cookie. A signed-in visitor
+ * who lands here (e.g. via bookmark) is redirected by the /home layout itself.
  */
 
 'use client';
@@ -37,7 +38,7 @@ export default function SignInPage() {
       setErrors({ form: authErrorMessage(error) });
       return;
     }
-    router.push('/new');
+    router.push('/home');
     router.refresh();
   }
 

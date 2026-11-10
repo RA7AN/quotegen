@@ -2,8 +2,8 @@
  * app/(auth)/sign-up/page.tsx — create an account (#9).
  *
  * Client component. Inline validation (AC-9), then Better Auth email+password
- * sign-up. Email verification is disabled for the MVP (see config), so a new
- * account is signed in immediately and routed into the wizard.
+ * sign-up. Email verification is disabled for the MVP (see config), so a new account
+ * is signed in immediately and routed into the /home dashboard.
  */
 
 'use client';
@@ -38,7 +38,7 @@ export default function SignUpPage() {
       setErrors({ form: authErrorMessage(error) });
       return;
     }
-    router.push('/new');
+    router.push('/home');
     router.refresh();
   }
 
