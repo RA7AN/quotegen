@@ -43,9 +43,10 @@ describe('db schema — column shape', () => {
   });
 
   it('clients / signoffBlocks store a jsonb blob + name/label', () => {
-    // clients gains custId (#11 slice 1) — the (userId, name, custId) dedupe business key.
+    // clients gains custId (#11 slice 1) and signoffBlocks gains contentKey (#11 slice 2)
+    // — both are the dedupe business keys for their respective auto-save upserts.
     expect(colsOf(clients)).toEqual(['createdAt', 'custId', 'data', 'id', 'name', 'updatedAt', 'userId']);
-    expect(colsOf(signoffBlocks)).toEqual(['createdAt', 'data', 'id', 'label', 'updatedAt', 'userId']);
+    expect(colsOf(signoffBlocks)).toEqual(['contentKey', 'createdAt', 'data', 'id', 'label', 'updatedAt', 'userId']);
   });
 
   it('aggregates the tables for drizzle(client, { schema })', () => {
