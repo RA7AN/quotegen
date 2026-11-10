@@ -1,0 +1,92 @@
+name: security-scan
+
+# Issue #22 - gitleaks secret scanning.
+#
+# Trigger matrix:
+#   - `pull_request`         scan ONLY the PR's commit range, so pre-existing
+#                            history can never fail unrelated work.
+#   - `push` to main         full-history sweep (catches anything that landed
+#                            via a merge-commit or squash whose range the PR
+#                            scan technically did cover, plus drift from any
+#                            force-push).
+#   - `schedule` Mondays     weekly full-history sweep as belt-and-braces; a
+#                            03:00 UTC cadence catches anything that slipped
+#                            past review.
+#
+# Binary download is version-pinned AND sha256-verified. A hijacked gitleaks
+# release cannot silently swap the tool and pass real secrets through: the
+# checksum step will fail loudly. When bumping GITLEAKS_VERSION, update the
+# SHA in the same commit (values live on the release page's assets list; the
+# linux_x64 tarball's sha is what we consume).
+#
+# NOTE (operator): add the `secret-scan` job name to the branch-protection
+# required checks alongside `Gate suite` + `migrate` so red = unmergeable.
+#
+# Permissions: `contents: read` is the minimum this job needs to fetch history
+# via actions/checkout@v4 with fetch-depth: 0. No write, no secrets, no id-token.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # 03:00 UTC Mondays. Off-peak so a red scheduled run doesn't wedge a
+    # same-morning deploy queue.
+    - cron: '0 3 * * 1'
+
+# A newer run on the same ref supersedes an older one (mirrors ci.yml).
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the PR range (BASE..HEAD) AND the scheduled/push
+          # sweeps both have the commits they need to walk.
+          fetch-depth: 0
+
+      - name: Install gitleaks (version-pinned, sha256-verified)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks version
+
+      - name: Scan PR commit range
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Hardening: event-payload SHA fields are populated by GitHub from
+          # real git objects, so a normal PR cannot inject shell metachars via
+          # them. But we still validate the shape (40-char lowercase hex) before
+          # interpolating into --log-opts, because defense-in-depth costs two
+          # lines and a malformed value would otherwise reach `git`.
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::BASE_SHA is not a 40-hex SHA" >&2; exit 2; }
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::HEAD_SHA is not a 40-hex SHA" >&2; exit 2; }
+          # --redact: findings print as `LEAKED_SECRET` rather than the value,
+          # so the runner log never becomes a secondary leak. --no-banner: less
+          # noise in the log. The exit code is 1 iff anything leaks.
+          ./gitleaks git --no-banner --redact --log-opts "${BASE_SHA}..${HEAD_SHA}" .
+
+      - name: Scan full history (push to main + weekly schedule)
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          ./gitleaks git --no-banner --redact .

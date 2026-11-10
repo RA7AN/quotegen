@@ -1,0 +1,34 @@
+# .gitleaks.toml — secret-scan configuration for Quotegen (issue #22).
+#
+# Extends the default ruleset (GitHub tokens, AWS keys, PEM private keys,
+# Postgres connection URLs with embedded creds, JWTs, Resend-style `re_...`
+# api keys, generic high-entropy api-key-shaped strings, etc.) and adds a
+# single value-shape allowlist for our `REPLACE_ME` placeholder sentinel.
+#
+# WHY allowlist by value-shape rather than by file path: the naive approach
+# (path-allowlist `.env.example` and every `*.test.ts`) would let a real
+# credential slip into those same files later and be silently ignored. The
+# value-shape rule exempts ONLY strings that literally contain REPLACE_ME,
+# so a genuine secret pasted into `.env.example` would still fail the scan.
+#
+# The `REPLACE_ME` marker is the load-bearing sentinel for the app's
+# unconfigured-guard path — see `src/auth/config.ts:isSecretSet()`,
+# `src/db/client.ts:isDbConfigured()`, `src/auth/email.ts:isEmailConfigured()`.
+# Deleting it from those files would break `npm run build` and CI, because
+# Better Auth + Drizzle need to initialize lazily with a placeholder URL
+# before real creds land.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Unconfigured-guard placeholder sentinel (REPLACE_ME)"
+regexTarget = "secret"
+regexes = [
+  # Real credentials never contain this literal substring, so this rule
+  # cannot mask a genuine leak. It only exempts the values shipped in
+  # `.env.example` and the corresponding `process.env.* = 'REPLACE_ME...'`
+  # assignments inside `src/auth/config.test.ts` + `src/db/client.test.ts`
+  # (test fixtures that exercise the detection path).
+  '''REPLACE_ME''',
+]
