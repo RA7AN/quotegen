@@ -85,3 +85,23 @@ export async function removeSignoff(id: string): Promise<boolean> {
   if (!(await authed())) return false;
   return write(`/api/signoff-blocks/${encodeURIComponent(id)}`, 'DELETE');
 }
+
+/**
+ * Fetch the next sequence number for the given template (wizard doc-number split,
+ * slice 2). Resolves to the digit string the server computed (max(seq) + 1 for the
+ * signed-in user's prior documents of the same kind), or null when the request
+ * cannot be satisfied (anonymous / unconfigured / network error / malformed body)
+ * — callers fall back to the factory default. Session-checked first like the rest
+ * of the library so an anonymous wizard run makes zero API calls on mount.
+ */
+export async function fetchNextSeq(template: 'quotation' | 'proforma'): Promise<string | null> {
+  if (!(await authed())) return null;
+  try {
+    const res = await fetch(`/api/documents/next-number?template=${template}`, { method: 'GET' });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { seq?: unknown };
+    return typeof json.seq === 'string' ? json.seq : null;
+  } catch {
+    return null;
+  }
+}

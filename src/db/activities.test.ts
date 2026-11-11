@@ -32,7 +32,7 @@ vi.mock('@/db/client', async (importOriginal) => {
   return { ...actual, getDb, isDbConfigured: () => dbConfigured };
 });
 
-const { foldEventCounts, deriveKpis, logEvent, eventCounts, saveDocument, listDocuments, getDocument, deleteDocument, pruneDocuments } =
+const { foldEventCounts, deriveKpis, logEvent, eventCounts, saveDocument, listDocuments, getDocument, deleteDocument, pruneDocuments, nextSeqFor, NEXT_SEQ_DEFAULT } =
   await import('./activities');
 
 beforeEach(() => {
@@ -324,5 +324,63 @@ describe('pruneDocuments (#12 slice 3)', () => {
     dbConfigured = true;
     select.mockImplementationOnce(() => { throw new Error('boom'); });
     await expect(pruneDocuments('u1')).resolves.toBe(0);
+  });
+});
+
+describe('nextSeqFor (wizard doc-number split slice 2)', () => {
+  it('returns the factory default when the DB is not configured', async () => {
+    await expect(nextSeqFor('u1', 'quotation')).resolves.toBe('6879');
+    await expect(nextSeqFor('u1', 'proforma')).resolves.toBe('5799');
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('returns the factory default when no rows match (new user)', async () => {
+    dbConfigured = true;
+    rows = [];
+    await expect(nextSeqFor('u1', 'quotation')).resolves.toBe(NEXT_SEQ_DEFAULT.quotation);
+  });
+
+  it('returns max(seq) + 1 for parseable quotation docNos', async () => {
+    dbConfigured = true;
+    rows = [
+      { number: 'ENCM-178-26-6879' },
+      { number: 'ENCM-26-6880' },
+      { number: 'ENCM-2026-9999' },
+    ];
+    await expect(nextSeqFor('u1', 'quotation')).resolves.toBe('10000');
+  });
+
+  it('skips unparseable rows and null numbers, taking the max of what parses', async () => {
+    dbConfigured = true;
+    rows = [
+      { number: null },
+      { number: 'GARBAGE' },
+      { number: '5799-00' }, // proforma shape, does not parse as quotation
+      { number: 'ENCM-26-1234' },
+      { number: 'ENCM-26-1200' },
+    ];
+    await expect(nextSeqFor('u1', 'quotation')).resolves.toBe('1235');
+  });
+
+  it('parses proforma doc numbers with the proforma codec', async () => {
+    dbConfigured = true;
+    rows = [
+      { number: 'ENCM-26-9999' }, // quotation shape, does not parse as proforma
+      { number: '5799-00' },
+      { number: '5810-01' },
+    ];
+    await expect(nextSeqFor('u1', 'proforma')).resolves.toBe('5811');
+  });
+
+  it('falls back to the default when every row is unparseable', async () => {
+    dbConfigured = true;
+    rows = [{ number: 'GARBAGE' }, { number: 'not-a-doc' }];
+    await expect(nextSeqFor('u1', 'quotation')).resolves.toBe(NEXT_SEQ_DEFAULT.quotation);
+  });
+
+  it('returns the default on query failure (best-effort, never blocks navigation)', async () => {
+    dbConfigured = true;
+    select.mockImplementationOnce(() => { throw new Error('boom'); });
+    await expect(nextSeqFor('u1', 'quotation')).resolves.toBe(NEXT_SEQ_DEFAULT.quotation);
   });
 });

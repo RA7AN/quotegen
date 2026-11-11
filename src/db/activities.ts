@@ -17,6 +17,7 @@
 import { and, eq, desc, count, inArray } from 'drizzle-orm';
 import { getDb, isDbConfigured } from './client';
 import { documents, events } from './schema';
+import { parseProformaDocNo, parseQuotationDocNo } from '@/lib/doc-number';
 
 export const EVENT_KINDS = ['exported', 'draft_saved', 'snapshot_saved', 'document_saved'] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
@@ -274,4 +275,54 @@ export function deriveKpis(counts: EventCounts): Kpis {
     proformasGenerated: counts.exportsByDocKind.proforma ?? 0,
     draftsSaved: counts.byType.draft_saved ?? 0,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Next-number lookup (wizard doc-number split, slice 2)
+// ---------------------------------------------------------------------------
+
+/** How many recent documents of the same kind to scan when computing next seq. */
+const NEXT_SEQ_SCAN_LIMIT = 100;
+
+/** Factory defaults when the user has no prior documents of that kind. */
+export const NEXT_SEQ_DEFAULT: Record<DocKind, string> = {
+  quotation: '6879',
+  proforma: '5799',
+};
+
+/**
+ * Compute the next doc seq for the given kind, scoped to this user. Reads the newest
+ * `NEXT_SEQ_SCAN_LIMIT` rows, parses `documents.number` with the template's codec,
+ * takes max(seq) + 1. Returns the factory default when:
+ *   - DB is not configured (creds-guarded degradation like every other helper here);
+ *   - the query fails (best-effort; the wizard prefill never blocks navigation);
+ *   - the user has no prior documents of this kind;
+ *   - none of the recent documents' number strings parse (legacy junk).
+ *
+ * Returns a plain digit string (no zero padding). The wizard pads to match whatever
+ * length the user's own previous sequence had (via the `bumpNumeric` helper in fields).
+ */
+export async function nextSeqFor(userId: string, kind: DocKind): Promise<string> {
+  if (!isDbConfigured()) return NEXT_SEQ_DEFAULT[kind];
+  try {
+    const rows = await getDb()
+      .select({ number: documents.number })
+      .from(documents)
+      .where(and(eq(documents.userId, userId), eq(documents.kind, kind)))
+      .orderBy(desc(documents.createdAt))
+      .limit(NEXT_SEQ_SCAN_LIMIT);
+    let max = -1;
+    for (const r of rows) {
+      const n = r.number;
+      if (!n) continue;
+      const parsed = kind === 'proforma' ? parseProformaDocNo(n) : parseQuotationDocNo(n);
+      if (!parsed) continue;
+      const seq = Number.parseInt(parsed.seq, 10);
+      if (Number.isFinite(seq) && seq > max) max = seq;
+    }
+    if (max < 0) return NEXT_SEQ_DEFAULT[kind];
+    return String(max + 1);
+  } catch {
+    return NEXT_SEQ_DEFAULT[kind];
+  }
 }

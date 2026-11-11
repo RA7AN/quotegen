@@ -28,6 +28,7 @@ import type { FieldErrors } from './state';
 import type { WizardAction } from './state';
 import type { Client, QuoteDocument } from '@/domain/types';
 import type { StoredClient } from './library';
+import { fetchNextSeq } from './library';
 import {
   parseQuotationDocNo,
   parseProformaDocNo,
@@ -88,6 +89,10 @@ function DocNumberRow({
   // the effect must not re-run on every keystroke or it would wipe transient input.
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
+  // True once the user has focused/typed in any segment. Server prefill only fires
+  // while this is false so a half-typed doc number never gets stomped by a slow
+  // response arriving after the user's edit.
+  const touched = useRef(false);
 
   // Single sync effect: fires when docNo changes externally (draft resume, hydrate),
   // when the template flips (which resets docNo to blank), and on mount. Compares
@@ -115,7 +120,31 @@ function DocNumberRow({
     setSegments(seedSegments(template, docNo));
   }, [docNo, template, dispatch]);
 
+  // Slice 2 (auto-increment after save): when the wizard is opened blank (new doc,
+  // template flip, cleared draft), ask the server for the user's next seq. Prefill
+  // only when the response arrives AND the user hasn't touched the fields, so we
+  // never stomp on typing. The endpoint is best-effort: null on anonymous, un-
+  // configured, or fetch failure => leave the factory default 6879 / 5799 in place.
+  useEffect(() => {
+    if (docNo !== '') return; // only seed a truly blank wizard
+    let cancelled = false;
+    void fetchNextSeq(template).then((nextSeq) => {
+      if (cancelled || !nextSeq || touched.current) return;
+      const next = { ...segmentsRef.current, seq: nextSeq } as
+        | QuotationSegments
+        | ProformaSegments;
+      const composed = tryCompose(next, template);
+      if (!composed) return;
+      setSegments(next);
+      dispatch({ type: 'setMeta', patch: { docNo: composed } }, { silent: true });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [docNo, template, dispatch]);
+
   const update = (next: QuotationSegments | ProformaSegments) => {
+    touched.current = true;
     setSegments(next);
     const composed = tryCompose(next, template);
     if (composed !== null) {
