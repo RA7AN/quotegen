@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 const getSession = vi.fn();
 vi.mock('@/auth/client', () => ({ getSession }));
 
-const { fetchClients, saveClient, removeClient, fetchSignoffs, saveSignoff, removeSignoff } =
+const { fetchClients, saveClient, removeClient, fetchSignoffs, saveSignoff, removeSignoff, fetchNextSeq } =
   await import('./library');
 
 const fetchMock = vi.fn();
@@ -101,5 +101,45 @@ describe('sign-off seam (#11 slice 3)', () => {
     fetchMock.mockResolvedValue(Response.json({ ok: true }));
     expect(await removeSignoff('b1')).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith('/api/signoff-blocks/b1', expect.objectContaining({ method: 'DELETE' }));
+  });
+});
+
+describe('fetchNextSeq (wizard doc-number split slice 2)', () => {
+  it('makes no request when anonymous and resolves null', async () => {
+    anonymous();
+    expect(await fetchNextSeq('quotation')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('GETs the next-number endpoint and returns the seq string when signed in', async () => {
+    signedIn();
+    fetchMock.mockResolvedValue(Response.json({ seq: '6880' }));
+    expect(await fetchNextSeq('quotation')).toBe('6880');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/documents/next-number?template=quotation',
+      expect.objectContaining({ method: 'GET' }),
+    );
+
+    fetchMock.mockResolvedValue(Response.json({ seq: '5811' }));
+    expect(await fetchNextSeq('proforma')).toBe('5811');
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/documents/next-number?template=proforma',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it('resolves null on non-2xx, missing seq field, or fetch failure (best-effort)', async () => {
+    signedIn();
+    fetchMock.mockResolvedValue(new Response('{}', { status: 500 }));
+    expect(await fetchNextSeq('quotation')).toBeNull();
+
+    fetchMock.mockResolvedValue(Response.json({ notSeq: 'oops' }));
+    expect(await fetchNextSeq('quotation')).toBeNull();
+
+    fetchMock.mockResolvedValue(Response.json({ seq: 6880 })); // number, not string
+    expect(await fetchNextSeq('quotation')).toBeNull();
+
+    fetchMock.mockRejectedValue(new Error('offline'));
+    expect(await fetchNextSeq('quotation')).toBeNull();
   });
 });
