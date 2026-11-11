@@ -277,3 +277,148 @@ export function StringListEditor({
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ *
+ * Numeric stepper + prefix combobox for the segmented doc-number row *
+ * (wizard doc-number split). Both are controlled inputs; the parent *
+ * owns the string value so parsing/composing stays in lib/doc-number.*
+ * ------------------------------------------------------------------ */
+
+/**
+ * Bump `current` by `delta`, clamped to [min, max]. Preserves zero padding when the
+ * user typed it (e.g. "0001" +/- 1 -> "0002" / "0000"), otherwise emits plain digits.
+ */
+function bumpNumeric(current: string, delta: number, min: number, max: number): string {
+  const parsed = parseInt(current, 10);
+  const base = Number.isFinite(parsed) ? parsed : min;
+  const next = Math.max(min, Math.min(max, base + delta));
+  const padded = current.length > 1 && current[0] === '0';
+  return padded ? String(next).padStart(current.length, '0') : String(next);
+}
+
+/**
+ * Labelled numeric input with -/+ steppers. Kept as text (not `type="number"`) with
+ * `inputMode="numeric"` so mobile keyboards show digits AND we avoid the browser
+ * spinner affordance clashing with our explicit steppers. Value is a plain string
+ * so leading zeros survive composition with the parent's parse/compose codec.
+ */
+export function NumberStepper({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 99_999_999,
+  error,
+  hint,
+  placeholder,
+  ariaGroupLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  min?: number;
+  max?: number;
+  error?: string;
+  hint?: string;
+  placeholder?: string;
+  ariaGroupLabel?: string;
+}) {
+  const id = useId();
+  return (
+    <div className="block text-sm">
+      <label htmlFor={id} className="mb-1 block font-medium text-black">{label}</label>
+      <div
+        role="group"
+        aria-label={ariaGroupLabel ? `${ariaGroupLabel} stepper` : label}
+        className="flex items-stretch gap-1"
+      >
+        <button
+          type="button"
+          aria-label={`Decrease ${label}`}
+          className="min-h-[2.75rem] min-w-[2.75rem] shrink-0 rounded border border-neutral-300 bg-white text-base font-medium hover:bg-neutral-100 active:bg-neutral-200"
+          onClick={() => onChange(bumpNumeric(value, -1, min, max))}
+        >
+          −
+        </button>
+        <input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          value={value}
+          placeholder={placeholder}
+          aria-invalid={error ? true : undefined}
+          className={inputClass + ' min-w-0 flex-1 text-center'}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          aria-label={`Increase ${label}`}
+          className="min-h-[2.75rem] min-w-[2.75rem] shrink-0 rounded border border-neutral-300 bg-white text-base font-medium hover:bg-neutral-100 active:bg-neutral-200"
+          onClick={() => onChange(bumpNumeric(value, +1, min, max))}
+        >
+          +
+        </button>
+      </div>
+      {hint && !error && <span className="mt-1 block text-xs text-muted">{hint}</span>}
+      {error && <span role="alert" className="mt-1 block text-xs font-medium text-red-700">{error}</span>}
+    </div>
+  );
+}
+
+/**
+ * Prefix picker: fixed options (e.g. `ENCM-`) plus `Custom…` which reveals a text
+ * input for the user's own string. When the current value isn't in the fixed list
+ * (legacy doc, restored draft), the picker auto-switches to Custom mode so nothing
+ * is silently lost.
+ */
+export function PrefixCombobox({
+  label,
+  value,
+  options,
+  onChange,
+  error,
+  customPlaceholder = 'e.g. ABC-',
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (v: string) => void;
+  error?: string;
+  customPlaceholder?: string;
+}) {
+  const id = useId();
+  const CUSTOM = '__custom__';
+  const isFixed = options.includes(value);
+  const selectValue = isFixed ? value : CUSTOM;
+  return (
+    <div className="block text-sm">
+      <label htmlFor={id} className="mb-1 block font-medium text-black">{label}</label>
+      <select
+        id={id}
+        className={inputClass + ' min-h-[2.75rem]'}
+        value={selectValue}
+        aria-invalid={error ? true : undefined}
+        onChange={(e) => {
+          // Selecting "Custom…" clears the value so the text input is focused on typing.
+          onChange(e.target.value === CUSTOM ? '' : e.target.value);
+        }}
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+        <option value={CUSTOM}>Custom…</option>
+      </select>
+      {!isFixed && (
+        <input
+          type="text"
+          aria-label={`${label} (custom)`}
+          value={value}
+          placeholder={customPlaceholder}
+          className={inputClass + ' mt-1'}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+      {error && <span role="alert" className="mt-1 block text-xs font-medium text-red-700">{error}</span>}
+    </div>
+  );
+}
