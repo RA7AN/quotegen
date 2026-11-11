@@ -80,8 +80,11 @@ export function Wizard() {
   const [savedSignoffs, setSavedSignoffs] = useState<StoredSignoff[]>([]);
   const [reuseNotice, setReuseNotice] = useState('');
 
-  const dispatch = (a: Parameters<typeof dispatchRaw>[0]) => {
-    dirty.current = true;
+  const dispatch = (a: Parameters<typeof dispatchRaw>[0], opts?: { silent?: boolean }) => {
+    // Programmatic seed dispatches (e.g. the segmented doc-number default on mount)
+    // pass silent:true so they don't dirty the wizard and cause autosave to write a
+    // "Resume draft?" the user never asked for. Real user edits use the default path.
+    if (!opts?.silent) dirty.current = true;
     dispatchRaw(a);
   };
 
@@ -270,10 +273,10 @@ export function Wizard() {
                   onClick={() => go(s.n)}
                   className={
                     statusLabel === 'active'
-                      ? 'rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white'
+                      ? 'min-h-[2.75rem] rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white'
                       : statusLabel === 'done'
-                        ? 'rounded-md px-3 py-1.5 text-sm font-medium text-black hover:bg-neutral-100 disabled:opacity-40'
-                        : 'rounded-md px-3 py-1.5 text-sm text-muted hover:bg-neutral-100 disabled:opacity-40'
+                        ? 'min-h-[2.75rem] rounded-md px-3 py-1.5 text-sm font-medium text-black hover:bg-neutral-100 disabled:opacity-40'
+                        : 'min-h-[2.75rem] rounded-md px-3 py-1.5 text-sm text-muted hover:bg-neutral-100 disabled:opacity-40'
                   }
                 >
                   {s.n}. {s.label}
@@ -375,16 +378,16 @@ export function Wizard() {
         )}
       </main>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => go(state.step === 1 ? 1 : ((state.step - 1) as WizardStep))}
           disabled={state.step === 1}
-          className="rounded border border-neutral-400 px-4 py-2 text-sm disabled:opacity-40"
+          className="min-h-[2.75rem] shrink-0 rounded border border-neutral-400 px-4 py-2 text-sm disabled:opacity-40"
         >
           ← Back
         </button>
-        <span className="text-xs text-muted">
+        <span className="min-w-0 flex-1 truncate text-center text-xs text-muted">
           {state.step === 4
             ? `Filename will be: ${filenameFor(state.doc)}`
             : 'Autosaved locally as you type'}
@@ -393,7 +396,7 @@ export function Wizard() {
           <button
             type="button"
             onClick={() => go((state.step + 1) as WizardStep)}
-            className="rounded bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800"
+            className="min-h-[2.75rem] shrink-0 rounded bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800"
           >
             Continue →
           </button>
