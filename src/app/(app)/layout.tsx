@@ -1,15 +1,15 @@
 /**
  * app/(app)/layout.tsx — authenticated app shell + session guard.
  *
- * Every route under this group (`/home`, `/new`, `/quotes`, `/recent`, `/settings`) is
+ * Every route under this group (`/home`, `/new`, `/quotes`, `/drafts`, `/recent`, `/settings`) is
  * user-scoped: an anonymous visitor is redirected to `/sign-in` before any child renders.
  * `headers()` is read unconditionally so Next.js marks the subtree dynamic at build time
  * (rather than baking a prerendered signed-out HTML snapshot), which is what we want for
  * a serverful deploy where auth creds are set per-environment.
  *
- * The chrome below is the "app nav" (Home / New quote / Quotes / Recent / Settings +
- * Sign out). It replaces what used to live on the root layout, so marketing and auth
- * routes keep their own quieter headers.
+ * The chrome below is the "app nav" (Home / New quote / Quotes / Drafts / Recent /
+ * Settings + Sign out). It replaces what used to live on the root layout, so marketing
+ * and auth routes keep their own quieter headers.
  */
 
 import Link from 'next/link';
@@ -23,6 +23,7 @@ const NAV: ReadonlyArray<{ href: string; label: string }> = [
   { href: '/home', label: 'Home' },
   { href: '/new', label: 'New quote' },
   { href: '/quotes', label: 'Quotes' },
+  { href: '/drafts', label: 'Drafts' },
   { href: '/recent', label: 'Recent' },
   { href: '/settings', label: 'Settings' },
 ];

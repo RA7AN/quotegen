@@ -15,7 +15,7 @@
  * by model name (singular `user`/`session`/`account`/`verification`) and columns are
  * validated by camelCase property name, so those names are load-bearing, not stylistic.
  */
-import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 /**
  * Better Auth core tables (#9). Ids/timestamps are written by Better Auth, so no
@@ -121,6 +121,33 @@ export const signoffBlocks = pgTable(
 );
 
 /**
+ * Named in-progress documents that never became a quote yet (multi-drafts slice).
+ * Mirrors the client/sign-off library pattern: owner-scoped rows with display columns
+ * derived SERVER-side from the validated doc, plus the full wizard envelope in
+ * `payload` so an open resumes exactly where the user saved. No unique key — a user
+ * can hold several drafts with the same doc number (unlike `documents`, which upserts
+ * on (userId, kind, number) at export time).
+ */
+export const drafts = pgTable(
+  'drafts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(), // auto-title: '<docNo> — <clientName>', trimmed parts
+    kind: text('kind').notNull(), // 'quotation' | 'proforma' (from doc.template)
+    number: text('number'), // doc number at save time (may be blank)
+    clientName: text('client_name'),
+    step: integer('step').notNull().default(1), // wizard position at last save
+    payload: jsonb('payload').notNull(), // { schemaVersion, doc } — draft codec envelope
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('drafts_user_idx').on(t.userId), index('drafts_user_updated_idx').on(t.userId, t.updatedAt)],
+);
+
+/**
  * Better Auth session/account/verification tables (#9). `user` is defined above
  * (documents.userId references it). Ids/timestamps are written by Better Auth, so
  * no DB-side defaults are required.
@@ -170,6 +197,7 @@ export type NewDocument = typeof documents.$inferInsert;
 export type ActivityEvent = typeof events.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type SignoffBlock = typeof signoffBlocks.$inferSelect;
+export type Draft = typeof drafts.$inferSelect;
 export type AuthUser = typeof user.$inferSelect;
 export type AuthSession = typeof session.$inferSelect;
 
@@ -177,4 +205,4 @@ export type AuthSession = typeof session.$inferSelect;
  * Aggregated for `drizzle(client, { schema })` and the Better Auth adapter, which
  * resolves models by these exact singular keys.
  */
-export const schema = { user, session, account, verification, documents, events, clients, signoffBlocks };
+export const schema = { user, session, account, verification, documents, events, clients, signoffBlocks, drafts };

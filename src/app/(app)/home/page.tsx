@@ -9,6 +9,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { DraftsStrip } from '@/drafts/drafts-strip';
 import { KpiStrip } from '../kpi-strip';
 
 export const metadata: Metadata = { title: 'Home — Quotegen' };
@@ -23,7 +24,7 @@ export default function HomePage() {
         blocks come back on every new quote.
       </p>
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <DashboardCard
           href="/new"
           title="Start a new quote"
@@ -31,9 +32,13 @@ export default function HomePage() {
           emphasis
         />
         <DashboardCard href="/quotes" title="Saved quotes" body="Local snapshots you can open, duplicate, or delete." />
+        <DashboardCard href="/drafts" title="Drafts" body="Half-filled forms saved server-side — resume any one anytime." />
         <DashboardCard href="/recent" title="Recent documents" body="Re-render any past quote straight from its stored payload." />
         <DashboardCard href="/settings" title="Company settings" body="Legal identity, banking, tagline and signatory details." />
       </div>
+
+      {/* Freshest server-backed drafts, one click back into the wizard (hidden when none). */}
+      <DraftsStrip max={3} title="Resume a draft" hrefAll="/drafts" />
 
       <KpiStrip />
     </main>

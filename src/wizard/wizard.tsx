@@ -14,6 +14,7 @@
 'use client';
 
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Step1Meta } from './step1-meta';
 import { Step2Lines } from './step2-lines';
 import { Step3Terms } from './step3-terms';
@@ -49,6 +50,8 @@ import {
   fetchSignoffs,
   saveSignoff,
   removeSignoff,
+  fetchDraft,
+  persistDraft,
   type StoredClient,
   type StoredSignoff,
 } from './library';
@@ -80,6 +83,11 @@ export function Wizard() {
   const [savedClients, setSavedClients] = useState<StoredClient[]>([]);
   const [savedSignoffs, setSavedSignoffs] = useState<StoredSignoff[]>([]);
   const [reuseNotice, setReuseNotice] = useState('');
+  // Multi-drafts: identity of the SERVER draft this session loads/created (null =
+  // not saved yet). "Save draft" creates on first click, refreshes in place after.
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const draftParam = useSearchParams().get('draft');
 
   const dispatch = (a: Parameters<typeof dispatchRaw>[0], opts?: { silent?: boolean }) => {
     // Programmatic seed dispatches (e.g. the segmented doc-number default on mount)
@@ -109,6 +117,34 @@ export function Wizard() {
     void fetchClients().then(setSavedClients);
     void fetchSignoffs().then(setSavedSignoffs);
   }, []);
+
+  // /new?draft=<id> — open a saved server draft (multi-drafts slice). One-shot on
+  // mount: hydrate the reducer with the stored step + doc, adopt the id so re-saving
+  // refreshes the same row, and stand down the local resume banner so the two
+  // restore paths can't fight. A missing/foreign/undecodable draft degrades to a
+  // fresh wizard plus a toast, never a crash (EC-11 discipline).
+  useEffect(() => {
+    if (!draftParam) return;
+    let alive = true;
+    void (async () => {
+      const loaded = await fetchDraft(draftParam);
+      if (!alive) return;
+      if (loaded) {
+        dispatch({ type: 'hydrate', step: loaded.step, doc: loaded.doc });
+        hydrated.current = true;
+        setDraftId(loaded.id);
+        setResume('none');
+        setReuseNotice(`Opened draft “${loaded.name}”.`);
+      } else {
+        setResume('none');
+        setStatus('That draft could not be found — started a fresh wizard.');
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot per deep link
+  }, [draftParam]);
 
   // Auto-dismiss reuse/success toasts after 5 s.
   useEffect(() => {
@@ -265,6 +301,24 @@ export function Wizard() {
     void logActivity('snapshot_saved', { docKind: state.doc.template }); // #10 KPI source
   };
 
+  // Explicit multi-draft save (multi-drafts slice): one click creates a titled row
+  // server-side; while a loaded/adopted draft is open, re-clicking refreshes the
+  // SAME row. Title is derived server-side from the doc — no naming prompt (AC-9).
+  const saveDraftNow = async (): Promise<void> => {
+    setSavingDraft(true);
+    try {
+      const res = await persistDraft({ id: draftId, step: state.step, doc: state.doc });
+      if (res) {
+        setDraftId(res.id);
+        setReuseNotice(res.name ? `Draft “${res.name}” saved.` : 'Draft saved.');
+      } else {
+        setStatus('Could not save the draft — sign in and try again.');
+      }
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
       <nav aria-label="Wizard progress" className="mb-5">
@@ -378,18 +432,31 @@ export function Wizard() {
       </main>
 
       <div className="mt-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => go(state.step === 1 ? 1 : ((state.step - 1) as WizardStep))}
-          disabled={state.step === 1}
-          className="min-h-[2.75rem] shrink-0 rounded border border-neutral-400 px-4 py-2 text-sm disabled:opacity-40"
-        >
-          ← Back
-        </button>
+        <span className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => go(state.step === 1 ? 1 : ((state.step - 1) as WizardStep))}
+            disabled={state.step === 1}
+            className="min-h-[2.75rem] rounded border border-neutral-400 px-4 py-2 text-sm disabled:opacity-40"
+          >
+            ← Back
+          </button>
+          <button
+            type="button"
+            onClick={() => void saveDraftNow()}
+            disabled={savingDraft}
+            title="Save this form to your drafts and resume it later from Drafts"
+            className="min-h-[2.75rem] rounded border border-neutral-400 px-4 py-2 text-sm hover:bg-neutral-100 disabled:opacity-40"
+          >
+            {savingDraft ? 'Saving…' : draftId ? 'Update draft' : 'Save draft'}
+          </button>
+        </span>
         <span className="min-w-0 flex-1 truncate text-center text-xs text-muted">
           {state.step === 4
             ? `Filename will be: ${filenameFor(state.doc)}`
-            : 'Autosaved locally as you type'}
+            : draftId
+              ? 'Autosaved locally; draft row updates when you save'
+              : 'Autosaved locally as you type'}
         </span>
         {state.step < 4 && (
           <button
