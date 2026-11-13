@@ -115,6 +115,7 @@ export function TextField({
  */
 export function RichInput({
   label,
+  ariaLabel,
   value,
   onChange,
   error,
@@ -122,6 +123,7 @@ export function RichInput({
   placeholder,
 }: {
   label?: string;
+  ariaLabel?: string;
   value: string;
   onChange: (v: string) => void;
   error?: string;
@@ -142,6 +144,7 @@ export function RichInput({
         id={id}
         value={value}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         aria-invalid={error ? true : undefined}
         className={inputClass}
         onChange={(e) => onChange(e.target.value)}
