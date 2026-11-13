@@ -33,7 +33,7 @@ export function SignOutButton() {
       type="button"
       onClick={() => void onClick()}
       disabled={busy}
-      className="rounded border border-neutral-600 px-2.5 py-1 text-xs uppercase tracking-wide text-white hover:border-gold-light hover:text-gold-light disabled:opacity-60"
+      className="rounded border border-band-ink/30 px-2.5 py-1 text-xs uppercase tracking-wide text-band-ink hover:border-gold-light hover:text-gold-light disabled:opacity-60"
     >
       {busy ? 'Signing out…' : 'Sign out'}
     </button>

@@ -9,7 +9,7 @@
 
 import { LineItemEditor } from './line-item-editor';
 import { TotalsPanel } from './totals-panel';
-import { TextField, StringListEditor, inputClass } from './fields';
+import { TextField, StringListEditor, SectionCard, inputClass } from './fields';
 import { parseDecimalToHalalas, formatSar } from '@/lib/money';
 import { parsePercentHundredths } from '@/lib/percent';
 import type { FieldErrors, WizardAction } from './state';
@@ -31,10 +31,11 @@ export function Step2Lines({
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
-      <div className="space-y-4">
-        <section className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Line items</h3>
+      <div className="space-y-4 [&>section:nth-child(even)]:bg-neutral-100">
+        <SectionCard
+          title="Line items"
+          required
+          action={
             <button
               type="button"
               onClick={onAddLine}
@@ -42,7 +43,8 @@ export function Step2Lines({
             >
               + Add line
             </button>
-          </div>
+          }
+        >
           {errors['lines'] && <p role="alert" className="text-xs font-medium text-red-700">{errors['lines']}</p>}
           {doc.lines.map((line, i) => (
             <LineItemEditor
@@ -57,10 +59,9 @@ export function Step2Lines({
               onDelete={() => dispatch({ type: 'deleteLine', id: line.id })}
             />
           ))}
-        </section>
+        </SectionCard>
 
-        <section className="space-y-3 rounded border border-neutral-200 p-3">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Commercials</h3>
+        <SectionCard title="Commercials">
           <div className="grid gap-4 sm:grid-cols-2">
             <VatField doc={doc} dispatch={dispatch} />
             {isProforma && <DiscountField doc={doc} dispatch={dispatch} />}
@@ -80,7 +81,7 @@ export function Step2Lines({
           {isProforma && (
             <SplitsEditor doc={doc} errors={errors} dispatch={dispatch} />
           )}
-        </section>
+        </SectionCard>
       </div>
 
       <TotalsPanel doc={doc} />

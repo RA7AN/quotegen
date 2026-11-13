@@ -113,12 +113,13 @@ function checkIso(value: string): boolean {
   return ISO_RE.test(value) && parseIsoDateParts(value) !== null;
 }
 
-/** Required Step-1 fields (FR-2.1). Optional ones (attn/custId/…) never block. */
+/** Required Step-1 fields (FR-2.1). Optional ones (custId/…) never block. */
 export function validateStep1(doc: QuoteDocument): FieldErrors {
   const errors: FieldErrors = {};
   if (!doc.meta.docNo.trim()) errors['meta.docNo'] = 'Document number is required.';
   if (!checkIso(doc.meta.quoteDateISO)) errors['meta.quoteDateISO'] = 'Enter a date as yyyy-mm-dd.';
   if (!checkIso(doc.meta.validUntilISO)) errors['meta.validUntilISO'] = 'Enter a date as yyyy-mm-dd.';
+  if (!doc.meta.attn.trim()) errors['meta.attn'] = 'Attention line is required.';
   if (!doc.client.name.trim()) errors['client.name'] = 'Client name is required.';
   return errors;
 }

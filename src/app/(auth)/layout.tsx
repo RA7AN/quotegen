@@ -11,7 +11,7 @@ import Link from 'next/link';
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <header className="border-b-4 border-gold bg-black px-4 py-3 text-white">
+      <header className="border-b-4 border-gold bg-band px-4 py-3 text-band-ink">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <Link href="/" className="text-sm font-bold uppercase tracking-widest">
             Quotegen

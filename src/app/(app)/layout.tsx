@@ -17,6 +17,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/auth/session';
 import { SignOutButton } from './sign-out-button';
+import { ThemeToggle } from '../theme-toggle';
 
 const NAV: ReadonlyArray<{ href: string; label: string }> = [
   { href: '/home', label: 'Home' },
@@ -35,7 +36,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <>
-      <header className="border-b-4 border-gold bg-black px-4 py-3 text-white">
+      {/* The band uses the non-inverting brand tokens: it stays black/gold in dark mode. */}
+      <header className="border-b-4 border-gold bg-band px-4 py-3 text-band-ink">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2">
           <Link href="/home" className="text-sm font-bold uppercase tracking-widest">
             Quotegen
@@ -46,8 +48,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 {n.label}
               </Link>
             ))}
-            <span aria-hidden className="text-neutral-600">·</span>
-            <span className="hidden truncate text-xs normal-case tracking-normal text-neutral-300 sm:inline" title={user.email}>
+            <ThemeToggle />
+            <span aria-hidden className="text-band-muted">·</span>
+            <span className="hidden truncate text-xs normal-case tracking-normal text-band-muted sm:inline" title={user.email}>
               {user.email}
             </span>
             <SignOutButton />

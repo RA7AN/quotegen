@@ -22,7 +22,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { TextField, RichInput, NumberStepper, PrefixCombobox } from './fields';
+import { TextField, RichInput, NumberStepper, PrefixCombobox, SectionCard } from './fields';
 import { ClientPicker } from './client-picker';
 import type { FieldErrors } from './state';
 import type { WizardAction } from './state';
@@ -178,7 +178,7 @@ function DocNumberRow({
     const q = segments as QuotationSegments;
     return (
       <div>
-        <span className="mb-1 block text-sm font-medium text-black">Document number</span>
+        <span className="mb-1 block text-sm font-medium text-black">Document number<span className="ml-0.5 text-red-600" aria-hidden="true">*</span></span>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <PrefixCombobox
             label="Prefix"
@@ -220,7 +220,7 @@ function DocNumberRow({
   const p = segments as ProformaSegments;
   return (
     <div>
-      <span className="mb-1 block text-sm font-medium text-black">Invoice number</span>
+      <span className="mb-1 block text-sm font-medium text-black">Invoice number<span className="ml-0.5 text-red-600" aria-hidden="true">*</span></span>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <NumberStepper
           label="Invoice #"
@@ -260,9 +260,11 @@ function DocNumberRow({
  */
 function AttnRow({
   attn,
+  error,
   dispatch,
 }: {
   attn: string;
+  error?: string;
   dispatch: (a: WizardAction, opts?: { silent?: boolean }) => void;
 }) {
   const init = parseAttnTitle(attn);
@@ -293,7 +295,7 @@ function AttnRow({
 
   return (
     <div>
-      <span className="mb-1 block text-sm font-medium text-black">Attention line</span>
+      <span className="mb-1 block text-sm font-medium text-black">Attention line<span className="ml-0.5 text-red-600" aria-hidden="true">*</span></span>
       <div className="flex items-end gap-2">
         {/* Salutation select */}
         <div className="w-28 shrink-0 sm:w-24">
@@ -338,6 +340,7 @@ function AttnRow({
           />
         </div>
       </div>
+      {error && <p role="alert" className="mt-1 text-xs font-medium text-red-700">{error}</p>}
     </div>
   );
 }
@@ -415,81 +418,90 @@ export function Step1Meta({
   onRemoveClient?: (id: string) => void;
 }) {
   return (
-    <div className="space-y-5">
-      <fieldset>
-        <legend className="mb-2 text-sm font-medium">Template (FR-1.3)</legend>
-        <div className="flex flex-wrap gap-4">
-          {(['quotation', 'proforma'] as const).map((t) => (
-            <label key={t} className="flex min-h-[2.5rem] items-center gap-2 text-sm capitalize">
-              <input
-                type="radio"
-                name="template"
-                checked={doc.template === t}
-                onChange={() => dispatch({ type: 'setTemplate', template: t })}
-              />
-              {t === 'proforma' ? 'Proforma Invoice' : 'Quotation'}
-            </label>
-          ))}
+    <div className="space-y-4 [&>section:nth-child(even)]:bg-neutral-100">
+      <SectionCard>
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium">Template</legend>
+          <div className="flex flex-wrap gap-4">
+            {(['quotation', 'proforma'] as const).map((t) => (
+              <label key={t} className="flex min-h-[2.5rem] items-center gap-2 text-sm capitalize">
+                <input
+                  type="radio"
+                  name="template"
+                  checked={doc.template === t}
+                  onChange={() => dispatch({ type: 'setTemplate', template: t })}
+                />
+                {t === 'proforma' ? 'Proforma Invoice' : 'Quotation'}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </SectionCard>
+
+      <SectionCard>
+        <DocNumberRow doc={doc} errors={errors} dispatch={dispatch} />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            label="Quotation date"
+            required
+            type="date"
+            value={doc.meta.quoteDateISO}
+            error={errors['meta.quoteDateISO']}
+            onChange={(v) => dispatch({ type: 'setMeta', patch: { quoteDateISO: v } })}
+          />
+          <TextField
+            label="Valid until"
+            required
+            type="date"
+            value={doc.meta.validUntilISO}
+            error={errors['meta.validUntilISO']}
+            onChange={(v) => dispatch({ type: 'setMeta', patch: { validUntilISO: v } })}
+          />
         </div>
-      </fieldset>
+      </SectionCard>
 
-      <DocNumberRow doc={doc} errors={errors} dispatch={dispatch} />
+      <SectionCard title="Client">
+        <ClientPicker clients={savedClients} onPick={(c) => onPickClient?.(c)} onRemove={(id) => onRemoveClient?.(id)} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <RichInput
+            label="Client name"
+            required
+            value={doc.client.name}
+            error={errors['client.name']}
+            onChange={(v) => dispatch({ type: 'setClient', patch: { name: v } })}
+          />
+          <TextField
+            label="Cust ID"
+            value={doc.client.custId}
+            onChange={(v) => dispatch({ type: 'setClient', patch: { custId: v } })}
+          />
+          <TextField
+            label="CR No."
+            value={doc.client.crNo}
+            onChange={(v) => dispatch({ type: 'setClient', patch: { crNo: v } })}
+          />
+        </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          label="Quotation date"
-          type="date"
-          value={doc.meta.quoteDateISO}
-          error={errors['meta.quoteDateISO']}
-          onChange={(v) => dispatch({ type: 'setMeta', patch: { quoteDateISO: v } })}
+        <AttnRow
+          attn={doc.meta.attn}
+          error={errors['meta.attn']}
+          dispatch={dispatch}
         />
-        <TextField
-          label="Valid until"
-          type="date"
-          value={doc.meta.validUntilISO}
-          error={errors['meta.validUntilISO']}
-          onChange={(v) => dispatch({ type: 'setMeta', patch: { validUntilISO: v } })}
-        />
-      </div>
 
-      <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Client</h3>
-      <ClientPicker clients={savedClients} onPick={(c) => onPickClient?.(c)} onRemove={(id) => onRemoveClient?.(id)} />
-      <div className="grid gap-4 sm:grid-cols-2">
+        <AddressBlock
+          addressLines={doc.client.addressLines}
+          city={doc.client.city}
+          dispatch={dispatch}
+        />
+
         <RichInput
-          label="Client name"
-          value={doc.client.name}
-          error={errors['client.name']}
-          onChange={(v) => dispatch({ type: 'setClient', patch: { name: v } })}
+          label="Subject"
+          value={doc.meta.subject}
+          placeholder="Kidds Club Floor"
+          onChange={(v) => dispatch({ type: 'setMeta', patch: { subject: v } })}
         />
-        <TextField
-          label="Cust ID"
-          value={doc.client.custId}
-          onChange={(v) => dispatch({ type: 'setClient', patch: { custId: v } })}
-        />
-        <TextField
-          label="CR No."
-          value={doc.client.crNo}
-          onChange={(v) => dispatch({ type: 'setClient', patch: { crNo: v } })}
-        />
-      </div>
-
-      <AttnRow
-        attn={doc.meta.attn}
-        dispatch={dispatch}
-      />
-
-      <AddressBlock
-        addressLines={doc.client.addressLines}
-        city={doc.client.city}
-        dispatch={dispatch}
-      />
-
-      <RichInput
-        label="Subject"
-        value={doc.meta.subject}
-        placeholder="Kidds Club Floor"
-        onChange={(v) => dispatch({ type: 'setMeta', patch: { subject: v } })}
-      />
+      </SectionCard>
     </div>
   );
 }

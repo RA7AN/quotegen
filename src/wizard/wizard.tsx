@@ -18,6 +18,7 @@ import { Step1Meta } from './step1-meta';
 import { Step2Lines } from './step2-lines';
 import { Step3Terms } from './step3-terms';
 import { Step4Review } from './step4-review';
+import { FloatingToast, FloatingToastStack } from './fields';
 import {
   furthestAllowedStep,
   initialWizardState,
@@ -108,6 +109,13 @@ export function Wizard() {
     void fetchClients().then(setSavedClients);
     void fetchSignoffs().then(setSavedSignoffs);
   }, []);
+
+  // Auto-dismiss reuse/success toasts after 5 s.
+  useEffect(() => {
+    if (!reuseNotice) return;
+    const t = setTimeout(() => setReuseNotice(''), 5_000);
+    return () => clearTimeout(t);
+  }, [reuseNotice]);
 
   // Debounced autosave on every change once the doc is dirty (FR-6.1) — a pristine
   // blank wizard is never persisted, so it can't nag "Resume draft?" next visit.
@@ -336,14 +344,6 @@ export function Wizard() {
         </div>
       )}
 
-      {/* #11 reuse toast: rendered above <main> so the auto-save-then-advance confirmation
-          stays visible after navigation moves off Step 1 (success-only, so green). */}
-      {reuseNotice && (
-        <p role="status" className="mb-4 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">
-          {reuseNotice}
-        </p>
-      )}
-
       <main className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
         {state.step === 1 && (
           <Step1Meta
@@ -368,7 +368,6 @@ export function Wizard() {
         {state.step === 4 && (
           <Step4Review
             input={input}
-            status={status}
             onDownload={() => void download()}
             onPrint={() => void print()}
             onSaveQuote={saveQuote}
@@ -402,6 +401,18 @@ export function Wizard() {
           </button>
         )}
       </div>
+
+      {/* Floating notifications — always visible at bottom-right regardless of scroll position. */}
+      {(status || reuseNotice) && (
+        <FloatingToastStack>
+          {status && (
+            <FloatingToast message={status} variant="info" onDismiss={() => setStatus('')} />
+          )}
+          {reuseNotice && (
+            <FloatingToast message={reuseNotice} variant="success" onDismiss={() => setReuseNotice('')} />
+          )}
+        </FloatingToastStack>
+      )}
     </div>
   );
 }

@@ -9,9 +9,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { browserKV, loadProfile, resetProfile, writeProfile } from '@/lib/storage';
-import { TextField, LinesTextArea } from '@/wizard/fields';
+import { TextField, LinesTextArea, FloatingToast, FloatingToastStack } from '@/wizard/fields';
 import type { CompanyProfile } from '@/domain/types';
 
 export function SettingsView() {
@@ -31,8 +31,15 @@ export function SettingsView() {
     setStatus('Restored the factory Encompass/Elaf profile.');
   };
 
+  // Auto-dismiss the status toast after 5 s.
+  useEffect(() => {
+    if (!status) return;
+    const t = setTimeout(() => setStatus(''), 5_000);
+    return () => clearTimeout(t);
+  }, [status]);
+
   return (
-    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 [&>section:nth-of-type(even)]:bg-neutral-100">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Company profile</h1>
         <div className="flex gap-2">
@@ -44,9 +51,9 @@ export function SettingsView() {
           </button>
         </div>
       </div>
-      {status && <p role="status" aria-live="polite" className="text-sm text-muted">{status}</p>}
+      {status && <p className="sr-only" role="status" aria-live="polite">{status}</p>}
 
-      <section className="space-y-4 rounded-lg border border-neutral-200 p-4">
+      <section className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Identity</h2>
         <TextField label="Legal name (EN)" value={profile.legalNameEn} onChange={(v) => patch({ legalNameEn: v })} />
         <TextField label="Legal name (AR)" value={profile.legalNameAr ?? ''} hint="Printed right-aligned in the proforma account block" onChange={(v) => patch({ legalNameAr: v })} />
@@ -54,7 +61,7 @@ export function SettingsView() {
         <LinesTextArea label="Address lines" lines={profile.addressLines} onChange={(lines) => patch({ addressLines: lines })} />
       </section>
 
-      <section className="space-y-4 rounded-lg border border-neutral-200 p-4">
+      <section className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Contact &amp; fiscal</h2>
         <LinesTextArea label="Phone numbers" lines={profile.phone} onChange={(lines) => patch({ phone: lines })} />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -66,7 +73,7 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-lg border border-neutral-200 p-4">
+      <section className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Bank (proforma)</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField label="Bank name" value={profile.bankName} onChange={(v) => patch({ bankName: v })} />
@@ -76,7 +83,7 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-lg border border-neutral-200 p-4">
+      <section className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Signatory</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField label="Name" value={profile.signatory.name} onChange={(v) => patchSig({ name: v })} />
@@ -86,10 +93,16 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section className="space-y-2 rounded-lg border border-neutral-200 p-4 text-sm">
+      <section className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm">
         <h2 className="text-xs font-bold uppercase tracking-wide text-muted">Brand marks (bundled assets)</h2>
         <p className="text-muted">Header: {profile.logos.headerMark} · Footer: {profile.logos.footerMark}</p>
       </section>
+
+      {status && (
+        <FloatingToastStack>
+          <FloatingToast message={status} variant="success" onDismiss={() => setStatus('')} />
+        </FloatingToastStack>
+      )}
     </main>
   );
 }

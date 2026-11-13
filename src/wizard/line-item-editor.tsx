@@ -95,6 +95,8 @@ export function LineItemEditor({
       </div>
 
       <RichTextArea
+        label="Description"
+        required
         ariaLabel={`Description for line ${sno}`}
         rows={2}
         value={line.description}

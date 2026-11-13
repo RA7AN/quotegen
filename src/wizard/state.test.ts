@@ -100,7 +100,7 @@ describe('line ops — renumbering on reorder/delete (FR-3.1/3.2 / AC-10)', () =
 describe('step gating (FR-2.3 / AC-9)', () => {
   it('blank wizard blocks step 1 with field-level messages', () => {
     const errors = validateStep1(initialWizardState().doc);
-    expect(Object.keys(errors).sort()).toEqual(['client.name', 'meta.docNo', 'meta.quoteDateISO', 'meta.validUntilISO']);
+    expect(Object.keys(errors).sort()).toEqual(['client.name', 'meta.attn', 'meta.docNo', 'meta.quoteDateISO', 'meta.validUntilISO']);
     expect(furthestAllowedStep(initialWizardState().doc)).toBe(1);
   });
 

@@ -13,7 +13,6 @@ import type { PdfInput } from '@/pdf/input';
 
 export function Step4Review({
   input,
-  status,
   onDownload,
   onPrint,
   onSaveQuote,
@@ -21,7 +20,6 @@ export function Step4Review({
   setSaveName,
 }: {
   input: PdfInput;
-  status: string;
   onDownload: () => void;
   onPrint: () => void;
   onSaveQuote: () => void;
@@ -65,7 +63,6 @@ export function Step4Review({
               Save quote
             </button>
           </div>
-          {status && <p role="status" aria-live="polite" className="text-xs text-muted">{status}</p>}
         </div>
       </div>
 

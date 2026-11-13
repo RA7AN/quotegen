@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { TextField, RichInput, RichTextArea, inputClass } from './fields';
+import { TextField, RichInput, RichTextArea, SectionCard, inputClass } from './fields';
 import { ConfirmDialog } from './confirm-dialog';
 import { SignoffPicker } from './signoff-picker';
 import type { ReactNode } from 'react';
@@ -88,10 +88,10 @@ export function Step3Terms({
   };
 
   return (
-    <div className="space-y-6">
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Terms &amp; Conditions</h3>
+    <div className="space-y-4 [&>section:nth-child(even)]:bg-neutral-100">
+      <SectionCard
+        title="Terms & Conditions"
+        action={
           <button
             type="button"
             onClick={restoreDefaults}
@@ -99,7 +99,8 @@ export function Step3Terms({
           >
             ↺ Restore default clauses
           </button>
-        </div>
+        }
+      >
         <p className="text-xs text-muted">
           The first (validity) and last (scope variation) clauses are the defaults — removing one asks for
           confirmation. Use<span className="mx-1 font-medium">＋</span>to insert a clause in the middle and the
@@ -131,11 +132,10 @@ export function Step3Terms({
         >
           + Add clause
         </button>
-      </section>
+      </SectionCard>
 
       {suggestions.length > 0 && (
-        <section className="space-y-2 rounded border border-dashed border-neutral-300 bg-neutral-50 p-3">
-          <h4 className="text-xs font-bold uppercase tracking-wide text-muted">Suggested clauses</h4>
+        <SectionCard title="Suggested clauses" dashed>
           {suggestions.map((s) => (
             <div key={s} className="flex flex-wrap items-center justify-between gap-2 text-sm text-neutral-600">
               <span className="italic">{s}</span>
@@ -157,18 +157,17 @@ export function Step3Terms({
               </span>
             </div>
           ))}
-        </section>
+        </SectionCard>
       )}
 
-      <section className="space-y-3 rounded border border-neutral-200 p-3">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-muted">Sign-off block</h3>
+      <SectionCard title="Sign-off block">
         <SignoffPicker blocks={savedSignoffs} onPick={(b) => onPickSignoff?.(b)} onRemove={(id) => onRemoveSignoff?.(id)} />
         <RichInput label="Sign-off line" value={doc.closing.signoff} onChange={(v) => dispatch({ type: 'setClosing', patch: { signoff: v } })} />
         <RichInput label="Name" value={doc.closing.name} onChange={(v) => dispatch({ type: 'setClosing', patch: { name: v } })} />
         <TextField label="Organisation" value={doc.closing.org} onChange={(v) => dispatch({ type: 'setClosing', patch: { org: v } })} />
         <TextField label="Mobile" value={doc.closing.mobile} onChange={(v) => dispatch({ type: 'setClosing', patch: { mobile: v } })} />
         <TextField label="Email" value={doc.closing.email} onChange={(v) => dispatch({ type: 'setClosing', patch: { email: v } })} />
-      </section>
+      </SectionCard>
 
       <ConfirmDialog
         open={pendingRemove !== null}
