@@ -64,8 +64,8 @@ export const styles = StyleSheet.create({
   prose: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.ink, lineHeight: 1.4, marginBottom: 10 },
 
   // ---- line-items table (03 §3.3 / §4) ----
-  tableHeader: { flexDirection: 'row', backgroundColor: COLORS.headerShade, borderBottomWidth: 1, borderBottomColor: COLORS.ink },
-  th: { fontFamily: FONTS.body, fontWeight: 700, fontSize: 9, color: COLORS.ink, paddingVertical: 5, paddingHorizontal: 4 },
+  tableHeader: { flexDirection: 'row', backgroundColor: COLORS.ink, borderBottomWidth: 1, borderBottomColor: COLORS.ink },
+  th: { fontFamily: FONTS.body, fontWeight: 700, fontSize: 9, color: COLORS.paper, paddingVertical: 5, paddingHorizontal: 4 },
   row: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#BBBBBB', paddingVertical: 4 },
   rowAlt: { backgroundColor: COLORS.zebraTint },
   cell: { fontFamily: FONTS.body, fontSize: 9, color: COLORS.ink, paddingHorizontal: 4, lineHeight: 1.35 },

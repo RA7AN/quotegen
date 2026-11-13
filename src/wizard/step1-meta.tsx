@@ -22,7 +22,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { TextField, RichInput, LinesTextArea, NumberStepper, PrefixCombobox } from './fields';
+import { TextField, RichInput, NumberStepper, PrefixCombobox } from './fields';
 import { ClientPicker } from './client-picker';
 import type { FieldErrors } from './state';
 import type { WizardAction } from './state';
@@ -42,6 +42,25 @@ import {
 
 /** Fixed prefix options for the Quotation dropdown. "Custom…" is added by the widget. */
 const QUOTATION_PREFIX_OPTIONS = ['ENCM-'] as const;
+
+/** Salutation options shown in the attention-row dropdown. "Custom…" is added inline. */
+const SALUTATION_OPTIONS = ['Mr', 'Ms', 'Mrs', 'Dr'] as const;
+
+/**
+ * Splits an existing attn string (e.g. "Mr Mithun") into a recognised title + a
+ * remaining name. Returns `{ title: '', name: full }` when the title is unknown,
+ * which leaves the salutation select on "—" (no title) in the UI.
+ */
+function parseAttnTitle(attn: string): { title: string; name: string } {
+  const m = /^(Mr|Mrs|Ms|Dr)\.?\s+(.+)/i.exec(attn.trim());
+  return m ? { title: m[1]!, name: m[2]! } : { title: '', name: attn };
+}
+
+/** Joins title + person back into the authoritative meta.attn string. */
+function composeAttn(title: string, name: string): string {
+  if (!title) return name;
+  return `${title} ${name}`;
+}
 
 /** 2-digit year string for the current calendar year (used as blank-doc default). */
 function currentYearYY(): string {
@@ -227,6 +246,159 @@ function DocNumberRow({
   );
 }
 
+/**
+ * Salutation dropdown + attention-name field.
+ *
+ * Local state keeps the two halves (`title` and `name`) independent so partial
+ * typing is never stomped. The authoritative `meta.attn` string is recomposed on
+ * every edit via `composeAttn`. Synced from external attn changes (draft resume,
+ * duplicate) when the composed value doesn't match what the local state would
+ * produce (same pattern as DocNumberRow).
+ *
+ * "Custom…" option in the select reveals a free-text input for non-standard
+ * titles (e.g. "Prof", "Eng").
+ */
+function AttnRow({
+  attn,
+  dispatch,
+}: {
+  attn: string;
+  dispatch: (a: WizardAction, opts?: { silent?: boolean }) => void;
+}) {
+  const init = parseAttnTitle(attn);
+  const [title, setTitle] = useState(init.title);
+  const [name, setName] = useState(init.name);
+
+  // 'true' when the user selected Custom… or when the existing title is not in
+  // the fixed list (e.g. loaded from a draft that has "Prof").
+  const isCustom = title !== '' && !(SALUTATION_OPTIONS as readonly string[]).includes(title);
+
+  const stateRef = useRef({ title, name });
+  stateRef.current = { title, name };
+
+  // Resync local halves when attn changes externally and doesn't match what we
+  // would compose. All dispatches here are silent (programmatic, not a user edit).
+  useEffect(() => {
+    if (composeAttn(stateRef.current.title, stateRef.current.name) === attn) return;
+    const parsed = parseAttnTitle(attn);
+    setTitle(parsed.title);
+    setName(parsed.name);
+  }, [attn]);
+
+  const update = (t: string, n: string) => {
+    setTitle(t);
+    setName(n);
+    dispatch({ type: 'setMeta', patch: { attn: composeAttn(t, n) } });
+  };
+
+  return (
+    <div>
+      <span className="mb-1 block text-sm font-medium text-black">Attention line</span>
+      <div className="flex items-end gap-2">
+        {/* Salutation select */}
+        <div className="w-28 shrink-0 sm:w-24">
+          <select
+            aria-label="Salutation"
+            className="w-full min-h-[2.75rem] rounded border border-neutral-300 bg-white px-2 text-sm"
+            value={title === '' ? '__none__' : isCustom ? '__custom__' : title}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '__none__') update('', name);
+              else if (v === '__custom__') update('Custom', name);
+              else update(v, name);
+            }}
+          >
+            <option value="__none__">—</option>
+            {SALUTATION_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+            <option value="__custom__">Custom…</option>
+          </select>
+        </div>
+        {/* Custom-title input (only shown when Custom… is selected) */}
+        {isCustom && (
+          <div className="w-24 shrink-0">
+            <input
+              type="text"
+              aria-label="Custom salutation"
+              className="w-full min-h-[2.75rem] rounded border border-neutral-300 px-2 text-sm"
+              value={title === 'Custom' ? '' : title}
+              placeholder="e.g. Prof"
+              onChange={(e) => update(e.target.value, name)}
+            />
+          </div>
+        )}
+        {/* Person name */}
+        <div className="min-w-0 flex-1">
+          <RichInput
+            ariaLabel="Attention person name"
+            value={name}
+            placeholder="Mithun"
+            onChange={(v) => update(title, v)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Structured address fields replacing the free-text LinesTextArea.
+ *
+ * Fixed 4-slot mapping into `client.addressLines[]` (no schema change):
+ *  [0] → Address line 1
+ *  [1] → Address line 2
+ *  [2] → Region
+ *  [3] → Postal Code
+ *
+ * `client.city` stays its own schema field (used by the PDF as a labelled
+ * MetaField). The PDF renders addressLines with `.filter(Boolean)` so empty
+ * slots drop cleanly without label gaps (EC-8 behaviour).
+ */
+function AddressBlock({
+  addressLines,
+  city,
+  dispatch,
+}: {
+  addressLines: string[];
+  city: string;
+  dispatch: (a: WizardAction, opts?: { silent?: boolean }) => void;
+}) {
+  const l1 = addressLines[0] ?? '';
+  const l2 = addressLines[1] ?? '';
+  const region = addressLines[2] ?? '';
+  const postal = addressLines[3] ?? '';
+
+  const setAddress = (patch: { l1?: string; l2?: string; region?: string; postal?: string }) => {
+    const next = [
+      patch.l1 !== undefined ? patch.l1 : l1,
+      patch.l2 !== undefined ? patch.l2 : l2,
+      patch.region !== undefined ? patch.region : region,
+      patch.postal !== undefined ? patch.postal : postal,
+    ];
+    // Drop trailing blanks; keep interior blanks so slot indices stay stable.
+    while (next.length > 0 && !next[next.length - 1]!.trim()) next.pop();
+    dispatch({ type: 'setAddressLines', lines: next });
+  };
+
+  return (
+    <div>
+      <h4 className="mb-2 text-sm font-medium">Client address</h4>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField label="Address line 1" value={l1} onChange={(v) => setAddress({ l1: v })} />
+        <TextField label="Address line 2" value={l2} onChange={(v) => setAddress({ l2: v })} />
+        <TextField
+          label="City"
+          value={city}
+          onChange={(v) => dispatch({ type: 'setClient', patch: { city: v } })}
+        />
+        <TextField label="Region" value={region} onChange={(v) => setAddress({ region: v })} />
+        <TextField label="Postal Code" value={postal} onChange={(v) => setAddress({ postal: v })} />
+      </div>
+    </div>
+  );
+}
+
 export function Step1Meta({
   doc,
   errors,
@@ -289,35 +461,27 @@ export function Step1Meta({
           error={errors['client.name']}
           onChange={(v) => dispatch({ type: 'setClient', patch: { name: v } })}
         />
-        <RichInput
-          label="Attention line"
-          value={doc.meta.attn}
-          placeholder="Mr Mithun"
-          onChange={(v) => dispatch({ type: 'setMeta', patch: { attn: v } })}
-        />
         <TextField
           label="Cust ID"
           value={doc.client.custId}
           onChange={(v) => dispatch({ type: 'setClient', patch: { custId: v } })}
         />
         <TextField
-          label="City"
-          value={doc.client.city}
-          onChange={(v) => dispatch({ type: 'setClient', patch: { city: v } })}
-        />
-        <TextField
           label="CR No."
           value={doc.client.crNo}
           onChange={(v) => dispatch({ type: 'setClient', patch: { crNo: v } })}
         />
-        <div />
       </div>
 
-      <LinesTextArea
-        label="Client address lines"
-        lines={doc.client.addressLines}
-        hint="One line per row — blanks are dropped on blur"
-        onChange={(lines) => dispatch({ type: 'setAddressLines', lines })}
+      <AttnRow
+        attn={doc.meta.attn}
+        dispatch={dispatch}
+      />
+
+      <AddressBlock
+        addressLines={doc.client.addressLines}
+        city={doc.client.city}
+        dispatch={dispatch}
       />
 
       <RichInput

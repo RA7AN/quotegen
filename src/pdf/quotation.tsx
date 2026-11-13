@@ -79,15 +79,19 @@ export function QuotationDoc({ doc, profile, totals, assets }: PdfInput) {
         <HeaderBand profile={profile} assets={assets} />
         <FooterBand profile={profile} assets={assets} />
 
-        <Text style={s.heading}>Terms &amp; Conditions</Text>
-        {terms.clauses.map((c, i) => (
-          <Inline key={i} text={`${i + 1}. ${c}`} style={s.clause} />
-        ))}
+        {/* Terms + closing fill available space so the sign-off block is always
+            pushed to the bottom of the content area (above the footer). */}
+        <View style={{ flexGrow: 1 }}>
+          <Text style={s.heading}>Terms &amp; Conditions</Text>
+          {terms.clauses.map((c, i) => (
+            <Inline key={i} text={`${i + 1}. ${c}`} style={s.clause} />
+          ))}
 
-        <Text style={s.closing}>
-          We trust this quotation meets your requirements and look forward to your positive
-          response. For further clarifications, please feel free to contact us.
-        </Text>
+          <Text style={s.closing}>
+            We trust this quotation meets your requirements and look forward to your positive
+            response. For further clarifications, please feel free to contact us.
+          </Text>
+        </View>
 
         <View>
           <Inline text={closing.signoff} style={s.signoffLine} />
