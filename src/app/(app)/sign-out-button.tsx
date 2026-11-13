@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/auth/client';
 
-export function SignOutButton() {
+export function SignOutButton({ menuItem = false }: { menuItem?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -33,7 +33,11 @@ export function SignOutButton() {
       type="button"
       onClick={() => void onClick()}
       disabled={busy}
-      className="rounded border border-band-ink/30 px-2.5 py-1 text-xs uppercase tracking-wide text-band-ink hover:border-gold-light hover:text-gold-light disabled:opacity-60"
+      className={
+        menuItem
+          ? 'w-full rounded px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50 disabled:opacity-60'
+          : 'rounded border border-band-ink/30 px-2.5 py-1 text-xs uppercase tracking-wide text-band-ink hover:border-gold-light hover:text-gold-light disabled:opacity-60'
+      }
     >
       {busy ? 'Signing out…' : 'Sign out'}
     </button>

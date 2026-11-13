@@ -16,8 +16,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/auth/session';
-import { SignOutButton } from './sign-out-button';
-import { ThemeToggle } from '../theme-toggle';
+import { AccountMenu } from './account-menu';
 
 const NAV: ReadonlyArray<{ href: string; label: string }> = [
   { href: '/home', label: 'Home' },
@@ -43,18 +42,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/home" className="text-sm font-bold uppercase tracking-widest">
             Quotegen
           </Link>
-          <nav aria-label="Primary" className="flex flex-wrap items-center gap-4 text-xs uppercase tracking-wide">
+          <nav aria-label="Primary" className="relative flex flex-wrap items-center gap-4 text-xs uppercase tracking-wide">
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} className="hover:text-gold-light">
                 {n.label}
               </Link>
             ))}
-            <ThemeToggle />
-            <span aria-hidden className="text-band-muted">·</span>
-            <span className="hidden truncate text-xs normal-case tracking-normal text-band-muted sm:inline" title={user.email}>
-              {user.email}
-            </span>
-            <SignOutButton />
+            {/* Email + theme + sign-out are collapsed behind one ☰ account menu. */}
+            <AccountMenu email={user.email} />
           </nav>
         </div>
       </header>

@@ -46,12 +46,27 @@ export const styles = StyleSheet.create({
   titleWord: {
     fontFamily: FONTS.display,
     fontWeight: 700,
-    fontSize: 54,
+    fontSize: 42,
     letterSpacing: -0.5,
     color: COLORS.ink,
     lineHeight: 1,
   },
   entityBlock: { flex: 1, alignItems: 'flex-end', marginTop: 6 },
+  // Issuing-entity title: bold ink with a bar rule under it separating the name
+  // from the address/contact lines (border lives on the Text so the rule spans
+  // exactly the content width, right-aligned with the block).
+  entityName: {
+    fontFamily: FONTS.body,
+    fontWeight: 700,
+    fontSize: 10,
+    color: COLORS.ink,
+    lineHeight: 1.35,
+    textAlign: 'right',
+    paddingBottom: 4,
+    marginBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.ink,
+  },
   entityLine: { fontFamily: FONTS.body, fontSize: 9, color: COLORS.muted, lineHeight: 1.35, textAlign: 'right' },
 
   // ---- meta table (03 §3.2) ----
@@ -142,8 +157,10 @@ export function FooterBand({
 
 /** Right-hand issuing-entity block under the title word (03 §3.1). */
 export function EntityBlock({ profile }: { profile: CompanyProfile }) {
+  // The company name is the block title (bar rule under it); everything below is
+  // address/contact detail. All lines come from the CompanyProfile — Settings →
+  // company settings, never hardcoded.
   const lines = [
-    profile.legalNameEn,
     ...profile.addressLines,
     [...profile.phone, profile.mobile].filter(Boolean).join(' | '),
     profile.website,
@@ -152,6 +169,7 @@ export function EntityBlock({ profile }: { profile: CompanyProfile }) {
   ].filter(Boolean);
   return (
     <View style={styles.entityBlock}>
+      {profile.legalNameEn ? <Text style={styles.entityName}>{profile.legalNameEn}</Text> : null}
       {lines.map((l, i) => (
         <Text key={i} style={styles.entityLine}>{l}</Text>
       ))}

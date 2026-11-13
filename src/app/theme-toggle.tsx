@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { KEYS } from '@/lib/storage';
 
-export function ThemeToggle() {
+export function ThemeToggle({ inMenu = false }: { inMenu?: boolean }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   // Sync with whatever the pre-paint script chose (avoids hydration mismatch).
@@ -33,6 +33,22 @@ export function ThemeToggle() {
       /* storage unavailable — the switch still applies for this page load */
     }
   };
+
+  // Inside the account dropdown it reads as a plain menu row naming the mode the
+  // click switches TO; in the nav band it stays the compact ☀/☾ icon button.
+  if (inMenu) {
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-pressed={theme === 'dark'}
+        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-black hover:bg-neutral-100"
+      >
+        <span aria-hidden="true" className="w-4 text-center">{theme === 'dark' ? '☀' : '☾'}</span>
+        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      </button>
+    );
+  }
 
   return (
     <button

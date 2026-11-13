@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  blockingStep,
   furthestAllowedStep,
   initialWizardState,
   numberedLines,
@@ -108,6 +109,34 @@ describe('step gating (FR-2.3 / AC-9)', () => {
     const doc = filledDoc({ meta: { docNo: 'X', quoteDateISO: '2026-02-30', validUntilISO: '17-10-2026', subject: '', attn: '' } });
     expect(validateStep1(doc)).toHaveProperty('meta.quoteDateISO');
     expect(validateStep1(doc)).toHaveProperty('meta.validUntilISO');
+  });
+
+  it('enforces a minimum 30-day validity window on the quotation date', () => {
+    const meta = (quoteDateISO: string, validUntilISO: string) =>
+      filledDoc({ meta: { docNo: 'X', quoteDateISO, validUntilISO, subject: 'S', attn: 'A' } });
+    // Exactly 30 days is the seeded default and must pass untouched.
+    expect(validateStep1(meta('2026-10-17', '2026-11-16'))).not.toHaveProperty('meta.validUntilISO');
+    expect(validateStep1(meta('2026-10-17', '2026-11-15'))).toHaveProperty('meta.validUntilISO'); // 29 days
+    expect(validateStep1(meta('2026-10-17', '2026-10-10'))).toHaveProperty('meta.validUntilISO'); // before start
+    // A month-spanning gap computed across differing month lengths (Feb → Mar).
+    expect(validateStep1(meta('2026-02-01', '2026-03-02'))).toHaveProperty('meta.validUntilISO'); // 29 days
+    expect(validateStep1(meta('2026-02-01', '2026-03-03'))).not.toHaveProperty('meta.validUntilISO'); // 30
+  });
+
+  it('format errors win over the gap error when dates do not parse', () => {
+    const doc = filledDoc({ meta: { docNo: 'X', quoteDateISO: 'nope', validUntilISO: '2026-11-16', subject: 'S', attn: 'A' } });
+    expect(validateStep1(doc)['meta.validUntilISO']).toBeUndefined(); // gap not evaluated
+    expect(validateStep1(doc)).toHaveProperty('meta.quoteDateISO');
+  });
+
+  it('blockingStep names the step a forward jump bounces back to', () => {
+    expect(blockingStep(filledDoc(), 4)).toBeNull(); // everything fine — no bounce
+    // Draft restored under old rules, now failing the 30-day validity check.
+    const stale = filledDoc({ meta: { docNo: 'X', quoteDateISO: '2026-10-17', validUntilISO: '2026-10-30', subject: 'S', attn: 'A' } });
+    expect(blockingStep(stale, 4)).toBe(1);
+    expect(blockingStep(stale, 2)).toBe(1);
+    expect(blockingStep(stale, 1)).toBeNull(); // never bounces to the target itself
+    expect(blockingStep(filledDoc({ lines: [] }), 4)).toBe(2); // step 1 fine, lines empty
   });
 
   it('valid step 1 unlocks step 2; empty/blank-line step 2 blocks review', () => {

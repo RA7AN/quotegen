@@ -205,7 +205,35 @@ Named in-progress forms that never became a quote. Run signed-in on
 
 ---
 
-## 11. Sign-off
+## 11. Export & chrome iteration (validity window · account menu · entity rule · share) `[PR #29 · FR-2.1, FR-7, AC-9]`
+
+Run on `http://localhost:3000`, desktop + a mobile browser if available.
+
+- [ ] **30-day validity window.** Step 1: set a quote date, then Valid until 29 days
+  later → Continue is blocked with the inline error under Valid until; 30 days or more
+  passes. A fresh wizard (seeded default = +30) sails through untouched. `[FR-2.1]`
+- [ ] **Account menu.** The nav band shows one ☰ button instead of the loose email /
+  theme / sign-out trio. Opening it lists the signed-in email, a Dark/Light mode row
+  (flips the whole platform, survives reload), and Sign out (ends the session →
+  landing). Dismisses on outside click and on Escape. `[AC-9]`
+- [ ] **Entity block rule + header size.** Generate a quotation: the company name
+  beside the title is bold ink with a bar rule under it, address/contact lines below
+  the rule; `QUOTATION` renders at 42 pt (was 54). Edit the company address in
+  Settings → the PDF block follows it (never hardcoded). Compare against
+  `Output-ref/` — allowed upgrade only. `[03 §3.1, 03 §6]`
+- [ ] **Share PDF.** Step 4 Export card → Share next to Download/Print.
+  - Mobile (iOS Safari / Android Chrome): the native sheet opens with
+    Mail / WhatsApp / Messages etc.; the PDF arrives as a real attachment with the
+    filename from `filenameFor`. Dismissing the sheet says "Share dismissed", no
+    error. `[FR-7]`
+  - Desktop without file sharing (Safari, Firefox): status explains it downloaded
+    instead; the file matches Download PDF exactly (same blob + events).
+  - Shared and fallback paths both appear in the KPI tiles ('exported'; the
+    fallback also logs the document row like a plain Download does). `[#10]`
+
+---
+
+## 12. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -219,6 +247,7 @@ Named in-progress forms that never became a quote. Run signed-in on
 | Fidelity vs Output-ref | | |
 | 9 Segmented doc number | | |
 | 10 Multi-drafts | | |
+| 11 Export & chrome iteration | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

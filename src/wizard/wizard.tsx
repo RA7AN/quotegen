@@ -21,14 +21,17 @@ import { Step3Terms } from './step3-terms';
 import { Step4Review } from './step4-review';
 import { FloatingToast, FloatingToastStack } from './fields';
 import {
+  blockingStep,
   furthestAllowedStep,
   initialWizardState,
   validateStep,
   wizardReducer,
   type FieldErrors,
 } from './state';
+import { WizardErrorBoundary } from './error-boundary';
 import { registerFonts } from '@/pdf/theme';
 import { buildElement, makeInput, filenameFor, renderToBlob } from '@/pdf/index';
+import { canSharePdf, sharePdfFile } from './share';
 import {
   browserKV,
   clearDraft,
@@ -87,6 +90,10 @@ export function Wizard() {
   // not saved yet). "Save draft" creates on first click, refreshes in place after.
   const [draftId, setDraftId] = useState<string | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
+  // Web Share availability is a per-device browser capability — probe once on mount
+  // (false during SSR/prerender, so the fallback download path is the default).
+  const [nativeShare, setNativeShare] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const draftParam = useSearchParams().get('draft');
 
   const dispatch = (a: Parameters<typeof dispatchRaw>[0], opts?: { silent?: boolean }) => {
@@ -116,6 +123,7 @@ export function Wizard() {
   useEffect(() => {
     void fetchClients().then(setSavedClients);
     void fetchSignoffs().then(setSavedSignoffs);
+    setNativeShare(canSharePdf());
   }, []);
 
   // /new?draft=<id> — open a saved server draft (multi-drafts slice). One-shot on
@@ -221,9 +229,27 @@ export function Wizard() {
   };
 
   const go = (step: WizardStep) => {
+    // Backwards is ALWAYS allowed. furthestAllowedStep revalidates the whole doc,
+    // so gating a retreat (e.g. Step 3 → 2) with it once trapped users on a middle
+    // step whenever an earlier step regressed — a draft opened under older rules
+    // failing the newer 30-day validity check had no way out and no error shown.
+    if (step < state.step) {
+      dispatch({ type: 'goto', step });
+      return;
+    }
     setAttempted((a) => ({ ...a, [state.step]: true }));
-    if (step > state.step && Object.keys(validateStep(state.step, state.doc)).length > 0) return; // block + show errors
-    if (step > furthestAllowedStep(state.doc)) return;
+    if (step > state.step && Object.keys(validateStep(state.step, state.doc)).length > 0) return; // block + show errors here
+    if (step > state.step) {
+      // Blocked by a problem on an EARLIER step: bounce there with its errors
+      // surfaced and a fleeting toast, instead of swallowing the click silently.
+      const blocker = blockingStep(state.doc, step);
+      if (blocker !== null) {
+        setAttempted((a) => ({ ...a, [blocker]: true }));
+        dispatch({ type: 'goto', step: blocker });
+        setReuseNotice(`Step ${blocker} needs fixing before you can continue — see the highlighted fields.`);
+        return;
+      }
+    }
     // #11 slice 3: advancing off Step 1 auto-saves the (deduped) client profile. Only on
     // forward nav past a validated step, so half-typed/invalid clients never pile up.
     if (state.step === 1 && step > 1) void autoSaveClient(state.doc.client);
@@ -238,6 +264,17 @@ export function Wizard() {
     dispatch({ type: 'addLine', id: crypto.randomUUID(), line });
   };
 
+  // Anchor-click save for an in-memory blob. One blob URL at a time — each new
+  // export revokes the previous so repeated clicks don't leak object URLs.
+  const saveToDisk = (blob: Blob, filename: string): void => {
+    if (lastBlobUrl.current) URL.revokeObjectURL(lastBlobUrl.current);
+    lastBlobUrl.current = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = lastBlobUrl.current;
+    a.download = filename;
+    a.click();
+  };
+
   const download = async (): Promise<void> => {
     if (!canReachReview) {
       setStatus('Complete the earlier steps first — required fields are still missing.');
@@ -246,12 +283,7 @@ export function Wizard() {
     setStatus('Rendering PDF…');
     try {
       const { blob, filename } = await renderToBlob(input);
-      if (lastBlobUrl.current) URL.revokeObjectURL(lastBlobUrl.current);
-      lastBlobUrl.current = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = lastBlobUrl.current;
-      a.download = filename;
-      a.click();
+      saveToDisk(blob, filename);
       setStatus(`Downloaded ${filename}`);
       // #10: a Download is the definitive "generated" event — it logs 'exported'
       // for the KPI tiles and persists the document row so #12 can re-render the
@@ -281,6 +313,40 @@ export function Wizard() {
       void logActivity('exported', { docKind: state.doc.template }); // #10 KPI source
     } catch (err) {
       setStatus(`Render failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  // Share the rendered PDF through the device's native sheet (mail/social apps,
+  // real attachment). Where the browser can't share files (most desktop), the
+  // click degrades to a Download with the same event logging, so the user can
+  // still attach the file by hand. Dismissing the sheet is not an error.
+  const share = async (): Promise<void> => {
+    if (!canReachReview) {
+      setStatus('Complete the earlier steps first — required fields are still missing.');
+      return;
+    }
+    setSharing(true);
+    try {
+      const { blob, filename } = await renderToBlob(input);
+      const kind = state.doc.template === 'proforma' ? 'Proforma invoice' : 'Quotation';
+      const res = await sharePdfFile(blob, filename, `${kind} ${state.doc.meta.docNo}`.trim(), `${kind} from ${profile.legalNameEn}.`);
+      if (res.outcome === 'shared') {
+        setStatus(`Shared ${filename}`);
+        void logActivity('exported', { docKind: state.doc.template }); // #10 KPI source
+      } else if (res.outcome === 'cancelled') {
+        setStatus('Share dismissed — the PDF was not sent.');
+      } else if (res.outcome === 'unsupported') {
+        saveToDisk(blob, filename);
+        setStatus('Sharing isn’t available in this browser — downloaded instead; attach the PDF in your mail or chat app.');
+        void logActivity('exported', { docKind: state.doc.template });
+        void logActivity('document_saved', { docKind: state.doc.template, payload: { doc: state.doc, profile } });
+      } else {
+        setStatus(`Share failed: ${res.error ?? 'unknown error'}`);
+      }
+    } catch (err) {
+      setStatus(`Render failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -317,6 +383,14 @@ export function Wizard() {
     } finally {
       setSavingDraft(false);
     }
+  };
+
+  // Last-resort recovery from a render crash (error boundary): reload /new whole.
+  // The localStorage draft is left untouched and a fresh wizard starts pristine
+  // (dirty=false until a real edit), so the Resume banner offers the work back
+  // instead of a blank form overwriting it.
+  const hardRecover = (): void => {
+    window.location.assign('/new');
   };
 
   return (
@@ -399,6 +473,7 @@ export function Wizard() {
       )}
 
       <main className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <WizardErrorBoundary onReset={hardRecover}>
         {state.step === 1 && (
           <Step1Meta
             doc={state.doc}
@@ -424,11 +499,15 @@ export function Wizard() {
             input={input}
             onDownload={() => void download()}
             onPrint={() => void print()}
+            onShare={() => void share()}
+            sharing={sharing}
+            nativeShare={nativeShare}
             onSaveQuote={saveQuote}
             saveName={saveName}
             setSaveName={setSaveName}
           />
         )}
+        </WizardErrorBoundary>
       </main>
 
       <div className="mt-4 flex items-center justify-between gap-3">
