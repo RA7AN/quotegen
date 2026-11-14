@@ -36,6 +36,13 @@
       "when": 1794324918813,
       "tag": "0004_giant_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794585072739,
+      "tag": "0005_abandoned_human_fly",
+      "breakpoints": true
     }
   ]
 }

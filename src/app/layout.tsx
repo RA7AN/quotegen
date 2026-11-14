@@ -14,6 +14,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
+// Applies the saved (or system) theme before first paint so dark mode never
+// flashes the light stylesheet. Key must stay in sync with KEYS.theme.
+const THEME_SCRIPT =
+  "try{var t=localStorage.getItem('quotegen:theme:v1');var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}";
+
 export const metadata: Metadata = {
   title: 'Quotegen — Quotations & Proforma Invoices',
   description:
@@ -22,7 +27,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-screen bg-white text-black antialiased">{children}</body>
     </html>
   );

@@ -11,6 +11,64 @@
   --color-gold-light: #c9a227;
   --color-paper: #ffffff;
   --color-panel: #f7f7f7;
+
+  /* Brand band: the black/gold header strip, the closing-CTA hero and dialog
+     backdrops. These never invert — the band stays near-black in dark mode too,
+     separated from the page by its gold rule. */
+  --color-band: #000000;
+  --color-band-ink: #ffffff;
+  --color-band-muted: #a3a3a3;
+}
+
+/*
+ * Platform-wide dark mode (class strategy): a `.dark` on <html> flips the
+ * neutral/semantic surface tokens used by every chrome class. Utilities in
+ * Tailwind 4 compile to var(--color-*), so overriding the variables on the
+ * root element re-tints all surfaces at once — no dark: variants needed in
+ * components. The band tokens above intentionally do NOT flip.
+ */
+:root {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  /* Semantic surfaces */
+  --color-ink: #f4f4f5;
+  --color-paper: #101012;
+  --color-panel: #16161a;
+  --color-muted: #9d9da6;
+
+  /* Flipped base + neutral scale (50↔900 mirror) */
+  --color-white: #17171b;
+  --color-black: #f4f4f5;
+  --color-neutral-50: #1a1a1e;
+  --color-neutral-100: #212126;
+  --color-neutral-200: #2c2c32;
+  --color-neutral-300: #3d3d45;
+  --color-neutral-400: #53535d;
+  --color-neutral-500: #6e6e7a;
+  --color-neutral-600: #8f8f9b;
+  --color-neutral-700: #b6b6c0;
+  --color-neutral-800: #d4d4da;
+  --color-neutral-900: #e4e4e8;
+
+  /* State colors: light text/bg tints for dark surfaces */
+  --color-red-50: #2b1315;
+  --color-red-300: #7c3a41;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+  --color-red-800: #fecaca;
+  --color-green-50: #10261a;
+  --color-green-300: #2f5e45;
+  --color-green-700: #6ee7a8;
+  --color-green-800: #86efac;
+  --color-yellow-50: #282010;
+
+  /* Gold reads slightly brighter on dark surfaces */
+  --color-gold: #c9a227;
+  --color-gold-light: #dcbb52;
 }
 
 body {

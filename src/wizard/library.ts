@@ -1,9 +1,9 @@
 /**
- * wizard/library.ts — client-side reuse seam for saved client profiles & sign-off
- * blocks (#11 slice 3).
+ * wizard/library.ts — client-side reuse seam for saved client profiles, sign-off
+ * blocks, and server-backed drafts (#11 slice 3 / multi-drafts slice).
  *
- * Thin fetch wrappers over /api/clients and /api/signoff-blocks for the wizard UI.
- * Same discipline as wizard/telemetry.ts:
+ * Thin fetch wrappers over /api/clients, /api/signoff-blocks and /api/drafts for
+ * the wizard UI. Same discipline as wizard/telemetry.ts:
  *  - Best-effort: reads resolve to [] and writes never throw, so a failing or absent
  *    network call can't break navigation, autofill, or export.
  *  - Session-checked first: better-auth's client getSession answers from local state, so
@@ -14,10 +14,23 @@
  * src/db/signoff.ts.
  */
 import { getSession } from '@/auth/client';
-import type { Client, Closing } from '@/domain/types';
+import type { Client, Closing, QuoteDocument } from '@/domain/types';
+import type { WizardStep } from '@/lib/storage';
 
 export type StoredClient = { id: string; name: string; custId: string; data: Client; updatedAt: string };
 export type StoredSignoff = { id: string; label: string | null; data: Closing; updatedAt: string };
+// Draft shapes mirror the server types in src/db/drafts.ts (list summaries stay
+// light; only the single-draft read carries the full doc for wizard hydration).
+export type StoredDraftSummary = {
+  id: string;
+  name: string;
+  kind: string;
+  number: string | null;
+  clientName: string | null;
+  step: WizardStep;
+  updatedAt: string;
+};
+export type StoredDraft = StoredDraftSummary & { doc: QuoteDocument };
 
 /** True only when there is an authenticated session (else callers skip every request). */
 async function authed(): Promise<boolean> {
@@ -104,4 +117,61 @@ export async function fetchNextSeq(template: 'quotation' | 'proforma'): Promise<
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Multi-drafts (server-backed, user-scoped)
+// ---------------------------------------------------------------------------
+
+/**
+ * The user's saved drafts, freshest first (list rows only — no docs). Resolves to
+ * [] when signed out / unreachable, so the pickers simply render nothing.
+ */
+export async function fetchDrafts(limit?: number): Promise<StoredDraftSummary[]> {
+  if (!(await authed())) return [];
+  return readList<StoredDraftSummary>(`/api/drafts${limit ? `?limit=${limit}` : ''}`);
+}
+
+/** Open one draft with its full doc, or null (signed out / 404 / network). */
+export async function fetchDraft(id: string): Promise<StoredDraft | null> {
+  if (!(await authed())) return null;
+  try {
+    const res = await fetch(`/api/drafts/${encodeURIComponent(id)}`, { method: 'GET' });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { draft?: StoredDraft };
+    return json.draft ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Create (id null/undefined) or refresh a draft. Resolves to the tracked identity
+ * + server-derived title, or null when signed out / unreachable / rejected — the
+ * wizard surfaces the outcome as a toast and never blocks editing.
+ */
+export async function persistDraft(args: {
+  id: string | null;
+  step: WizardStep;
+  doc: QuoteDocument;
+}): Promise<{ id: string; name: string } | null> {
+  if (!(await authed())) return null;
+  try {
+    const res = await fetch('/api/drafts', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(args.id ? { id: args.id, step: args.step, doc: args.doc } : { step: args.step, doc: args.doc }),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { ok?: boolean; id?: string | null; name?: string };
+    if (!json.ok || typeof json.id !== 'string') return null;
+    return { id: json.id, name: typeof json.name === 'string' ? json.name : '' };
+  } catch {
+    return null;
+  }
+}
+
+export async function removeDraft(id: string): Promise<boolean> {
+  if (!(await authed())) return false;
+  return write(`/api/drafts/${encodeURIComponent(id)}`, 'DELETE');
 }

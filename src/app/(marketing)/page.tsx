@@ -181,11 +181,11 @@ function HowItWorks() {
 
 function ClosingCta() {
   return (
-    <section className="bg-black px-4 py-14 text-white">
+    <section className="bg-band px-4 py-14 text-band-ink">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-6">
         <div>
           <h2 className="text-2xl font-bold sm:text-3xl">Ready to stop formatting PDFs?</h2>
-          <p className="mt-2 max-w-prose text-sm text-neutral-300">
+          <p className="mt-2 max-w-prose text-sm text-band-muted">
             Create an account and export your first quotation in under two minutes —
             the wizard handles the rest.
           </p>
@@ -193,13 +193,13 @@ function ClosingCta() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/sign-up"
-            className="rounded bg-gold px-5 py-2.5 text-sm font-bold text-black hover:bg-gold-light"
+            className="rounded bg-gold px-5 py-2.5 text-sm font-bold text-band hover:bg-gold-light hover:text-band"
           >
             Create a free account →
           </Link>
           <Link
             href="/sign-in"
-            className="rounded border border-neutral-600 px-5 py-2.5 text-sm font-semibold text-white hover:border-gold-light hover:text-gold-light"
+            className="rounded border border-band-ink/30 px-5 py-2.5 text-sm font-semibold text-band-ink hover:border-gold-light hover:text-gold-light"
           >
             I already have one
           </Link>

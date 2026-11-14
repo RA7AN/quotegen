@@ -34,6 +34,7 @@ export const KEYS = {
   draft: 'quotegen:draft:v1',
   quotes: 'quotegen:quotes:v1',
   profile: 'quotegen:profile:v1',
+  theme: 'quotegen:theme:v1', // 'light' | 'dark'; absent = follow system
 } as const;
 
 /** Minimal Storage surface — localStorage in the browser, a Map in tests. */

@@ -8,10 +8,113 @@
 import { useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 
-export function FieldShell({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: ReactNode }) {
+/* ------------------------------------------------------------------ *
+ * SectionCard — faintly-tinted card wrapper for logical form groups.  *
+ * ------------------------------------------------------------------ */
+
+/**
+ * Wraps a logical section of the wizard in a light card (rounded-lg, border).
+ *
+ * `title`    — optional section heading (uppercase muted h3).
+ * `required` — red asterisk after the title.
+ * `action`   — rendered right-aligned in the same header row as the title
+ *              (e.g. "+ Add line" or "↺ Restore defaults").
+ * `dashed`   — uses a dashed border (e.g. the suggestions panel) instead of solid.
+ *
+ * Children get `space-y-4` internally. When `title` is absent, no header row is
+ * rendered (useful for sections that already have their own fieldset/legend).
+ *
+ * Tint alternation is handled by the parent container using
+ * `[&>section:nth-child(even)]:bg-neutral-100`, not by props here.
+ */
+export function SectionCard({
+  title,
+  required,
+  action,
+  dashed = false,
+  children,
+}: {
+  title?: string;
+  required?: boolean;
+  action?: ReactNode;
+  dashed?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <section className={`rounded-lg border bg-neutral-50 p-4 ${
+      dashed ? 'border-dashed border-neutral-300' : 'border-neutral-200'
+    }`}>
+      {title && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted">
+            {title}
+            {required && <span className="ml-0.5 font-sans normal-case tracking-normal text-red-600" aria-hidden="true">*</span>}
+          </h3>
+          {action}
+        </div>
+      )}
+      <div className="space-y-4">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * FloatingToast — fixed-position bottom-right notification stack.     *
+ * ------------------------------------------------------------------ */
+
+/**
+ * A single dismissible floating notification item.
+ * Wrap one or more in `<FloatingToastStack>` for the viewport container.
+ */
+export function FloatingToast({
+  message,
+  variant = 'success',
+  onDismiss,
+}: {
+  message: string;
+  variant?: 'success' | 'info' | 'error';
+  onDismiss: () => void;
+}) {
+  if (!message) return null;
+  const cls = variant === 'success'
+    ? 'border-green-300 bg-green-50 text-green-800'
+    : variant === 'error'
+      ? 'border-red-300 bg-red-50 text-red-700'
+      : 'border-gold bg-yellow-50 text-black';
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg ${cls}`}
+    >
+      <span className="flex-1">{message}</span>
+      <button
+        type="button"
+        aria-label="Dismiss notification"
+        onClick={onDismiss}
+        className="mt-px shrink-0 rounded p-0.5 leading-none opacity-50 hover:opacity-100 focus:opacity-100"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+/** Fixed bottom-right container for one or more FloatingToast children. */
+export function FloatingToastStack({ children }: { children: ReactNode }) {
+  return (
+    <div className="fixed bottom-4 right-4 z-50 flex max-w-xs flex-col gap-2 pointer-events-none">
+      {children}
+    </div>
+  );
+}
+
+export function FieldShell({ label, required, error, hint, children }: { label: string; required?: boolean; error?: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1 block font-medium text-black">{label}</span>
+      <span className="mb-1 block font-medium text-black">{label}{required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}</span>
       {children}
       {hint && !error && <span className="mt-1 block text-xs text-muted">{hint}</span>}
       {error && <span role="alert" className="mt-1 block text-xs font-medium text-red-700">{error}</span>}
@@ -78,6 +181,7 @@ function FormatToolbar({ onFormat }: { onFormat: (before: string, after?: string
 
 export function TextField({
   label,
+  required,
   value,
   onChange,
   error,
@@ -86,6 +190,7 @@ export function TextField({
   type = 'text',
 }: {
   label: string;
+  required?: boolean;
   value: string;
   onChange: (v: string) => void;
   error?: string;
@@ -95,7 +200,7 @@ export function TextField({
 }) {
   const id = useId();
   return (
-    <FieldShell label={label} error={error} hint={hint}>
+    <FieldShell label={label} required={required} error={error} hint={hint}>
       <input
         id={id}
         type={type}
@@ -116,6 +221,7 @@ export function TextField({
 export function RichInput({
   label,
   ariaLabel,
+  required,
   value,
   onChange,
   error,
@@ -124,6 +230,7 @@ export function RichInput({
 }: {
   label?: string;
   ariaLabel?: string;
+  required?: boolean;
   value: string;
   onChange: (v: string) => void;
   error?: string;
@@ -137,7 +244,7 @@ export function RichInput({
   };
   return (
     <div className="block text-sm">
-      {label && <label htmlFor={id} className="mb-1 block font-medium text-black">{label}</label>}
+      {label && <label htmlFor={id} className="mb-1 block font-medium text-black">{label}{required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}</label>}
       <FormatToolbar onFormat={fmt} />
       <input
         ref={ref}
@@ -159,6 +266,7 @@ export function RichInput({
 export function RichTextArea({
   label,
   ariaLabel,
+  required,
   value,
   onChange,
   placeholder,
@@ -167,6 +275,7 @@ export function RichTextArea({
 }: {
   label?: string;
   ariaLabel?: string;
+  required?: boolean;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -179,7 +288,7 @@ export function RichTextArea({
   };
   return (
     <div>
-      {label && <span className="mb-1 block text-sm font-medium text-black">{label}</span>}
+      {label && <span className="mb-1 block text-sm font-medium text-black">{label}{required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}</span>}
       <FormatToolbar onFormat={fmt} />
       <textarea
         ref={ref}
@@ -307,6 +416,7 @@ function bumpNumeric(current: string, delta: number, min: number, max: number): 
  */
 export function NumberStepper({
   label,
+  required,
   value,
   onChange,
   min = 0,
@@ -317,6 +427,7 @@ export function NumberStepper({
   ariaGroupLabel,
 }: {
   label: string;
+  required?: boolean;
   value: string;
   onChange: (v: string) => void;
   min?: number;
@@ -329,7 +440,7 @@ export function NumberStepper({
   const id = useId();
   return (
     <div className="block text-sm">
-      <label htmlFor={id} className="mb-1 block font-medium text-black">{label}</label>
+      <label htmlFor={id} className="mb-1 block font-medium text-black">{label}{required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}</label>
       <div
         role="group"
         aria-label={ariaGroupLabel ? `${ariaGroupLabel} stepper` : label}
@@ -376,6 +487,7 @@ export function NumberStepper({
  */
 export function PrefixCombobox({
   label,
+  required,
   value,
   options,
   onChange,
@@ -383,6 +495,7 @@ export function PrefixCombobox({
   customPlaceholder = 'e.g. ABC-',
 }: {
   label: string;
+  required?: boolean;
   value: string;
   options: readonly string[];
   onChange: (v: string) => void;
@@ -395,7 +508,7 @@ export function PrefixCombobox({
   const selectValue = isFixed ? value : CUSTOM;
   return (
     <div className="block text-sm">
-      <label htmlFor={id} className="mb-1 block font-medium text-black">{label}</label>
+      <label htmlFor={id} className="mb-1 block font-medium text-black">{label}{required && <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>}</label>
       <select
         id={id}
         className={inputClass + ' min-h-[2.75rem]'}

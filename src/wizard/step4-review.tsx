@@ -3,8 +3,10 @@
  *
  * The preview IS the PDF (`<PDFViewer>` over the exact element `renderToBlob` prints —
  * 02 §1 "single source of truth", no HTML/PDF divergence). Terms clauses and the sign-off
- * block now live on step 3, so this step is purely preview + export. Download/Print/Save
- * handlers are owned by the wizard.
+ * block now live on step 3, so this step is purely preview + export. Download/Print/Share/
+ * Save handlers are owned by the wizard. Share opens the device's native sheet (Web Share
+ * Level 2) with the PDF attached; `nativeShare` only tunes the tooltip because the wizard
+ * falls back to a Download when the browser can't share files.
  */
 
 import { PDFViewer } from '@react-pdf/renderer';
@@ -13,17 +15,21 @@ import type { PdfInput } from '@/pdf/input';
 
 export function Step4Review({
   input,
-  status,
   onDownload,
   onPrint,
+  onShare,
+  sharing,
+  nativeShare,
   onSaveQuote,
   saveName,
   setSaveName,
 }: {
   input: PdfInput;
-  status: string;
   onDownload: () => void;
   onPrint: () => void;
+  onShare: () => void;
+  sharing: boolean;
+  nativeShare: boolean;
   onSaveQuote: () => void;
   saveName: string;
   setSaveName: (v: string) => void;
@@ -48,6 +54,19 @@ export function Step4Review({
             >
               Print
             </button>
+            <button
+              type="button"
+              onClick={onShare}
+              disabled={sharing}
+              title={
+                nativeShare
+                  ? 'Share the PDF as an attachment via mail or social apps on this device'
+                  : 'This browser has no share sheet — downloads the PDF so you can attach it yourself'
+              }
+              className="rounded border border-neutral-400 px-4 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-60"
+            >
+              {sharing ? 'Sharing…' : 'Share'}
+            </button>
           </div>
           <div className="flex gap-2">
             <input
@@ -65,7 +84,6 @@ export function Step4Review({
               Save quote
             </button>
           </div>
-          {status && <p role="status" aria-live="polite" className="text-xs text-muted">{status}</p>}
         </div>
       </div>
 

@@ -113,12 +113,31 @@ function checkIso(value: string): boolean {
   return ISO_RE.test(value) && parseIsoDateParts(value) !== null;
 }
 
-/** Required Step-1 fields (FR-2.1). Optional ones (attn/custId/…) never block. */
+/** Whole days from `from` to `to` (pure calendar math via Date.UTC, no clock). */
+function daysBetween(from: { year: number; month: number; day: number }, to: { year: number; month: number; day: number }): number {
+  return Math.round((Date.UTC(to.year, to.month - 1, to.day) - Date.UTC(from.year, from.month - 1, from.day)) / 86_400_000);
+}
+
+/** FR-2.1: the quote must stay open at least this long after its own date. */
+export const MIN_VALIDITY_DAYS = 30;
+
+/** Required Step-1 fields (FR-2.1). Optional ones (custId/…) never block. */
 export function validateStep1(doc: QuoteDocument): FieldErrors {
   const errors: FieldErrors = {};
   if (!doc.meta.docNo.trim()) errors['meta.docNo'] = 'Document number is required.';
   if (!checkIso(doc.meta.quoteDateISO)) errors['meta.quoteDateISO'] = 'Enter a date as yyyy-mm-dd.';
   if (!checkIso(doc.meta.validUntilISO)) errors['meta.validUntilISO'] = 'Enter a date as yyyy-mm-dd.';
+  // Minimum validity window: "Valid until" must be ≥ 30 days after the quotation
+  // date (the seeded default is exactly +30, so untouched forms always pass).
+  // Only checked once BOTH dates parse — format errors win over gap errors.
+  else {
+    const quote = parseIsoDateParts(doc.meta.quoteDateISO);
+    const until = parseIsoDateParts(doc.meta.validUntilISO);
+    if (quote && until && daysBetween(quote, until) < MIN_VALIDITY_DAYS) {
+      errors['meta.validUntilISO'] = `Valid until must be at least ${MIN_VALIDITY_DAYS} days after the quotation date.`;
+    }
+  }
+  if (!doc.meta.attn.trim()) errors['meta.attn'] = 'Attention line is required.';
   if (!doc.client.name.trim()) errors['client.name'] = 'Client name is required.';
   return errors;
 }
@@ -151,6 +170,19 @@ export function stepComplete(step: WizardStep, doc: QuoteDocument): boolean {
 export function furthestAllowedStep(doc: QuoteDocument): WizardStep {
   if (stepComplete(1, doc) && stepComplete(2, doc)) return 4; // terms (3) never blocks, so review opens too
   return stepComplete(1, doc) ? 2 : 1;
+}
+
+/**
+ * The earliest step before `target` that still fails validation — where a blocked
+ * forward jump should bounce the user so the inline field errors become visible
+ * (e.g. a draft restored under older rules that a later rule now rejects).
+ */
+export function blockingStep(doc: QuoteDocument, target: WizardStep): WizardStep | null {
+  for (const s of [1, 2, 3] as const) {
+    if (s >= target) break;
+    if (!stepComplete(s, doc)) return s;
+  }
+  return null;
 }
 
 /** Sequence-numbered lines for display (FR-3.2): index + 1, contiguous by construction. */
