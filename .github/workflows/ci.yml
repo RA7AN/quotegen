@@ -10,6 +10,12 @@ name: CI
 # a no-op (schema.ts <-> latest drizzle/meta snapshot must be in lockstep).
 # NOTE (operator): once this PR merges, add `migrate` to the branch-protection
 # required checks alongside `Gate suite` so red = unmergeable.
+#
+# Issue #23 — supply-chain hardening: every action below is pinned to a full
+# commit SHA (mutable @vN tags can be hijacked upstream with zero signal; the
+# trailing comment records the human-readable release). Dependabot can keep the
+# SHAs current once configured. The typecheck step also gets a Node heap bump
+# (step-level ONLY — job-level would multiply across vitest workers and OOM).
 on:
   pull_request:
     branches: [main]
@@ -26,17 +32,17 @@ jobs:
     name: Gate suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Single pinned Node (no matrix): react-pdf output is byte-stable and we
       # want deterministic, reproducible gate results across runs.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Cache Next.js build
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .next/cache
           key: ${{ runner.os }}-next-${{ hashFiles('package-lock.json') }}
@@ -47,6 +53,12 @@ jobs:
         run: npm ci
 
       - name: Typecheck (tsc --noEmit)
+        # Cheap insurance as the codebase grows: tsc reserves ~2 GB by default on
+        # a 7 GB runner and cold CI has no tsconfig.tsbuildinfo, so the whole
+        # program is rebuilt from scratch. Step-scoped on purpose — a job-level
+        # setting would give every vitest worker 4 GB and OOM the runner.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run typecheck
 
       - name: Unit tests (vitest run)
@@ -97,9 +109,9 @@ jobs:
       # config is only for offline `generate`, never reached here.
       DATABASE_URL: postgresql://quotegen:quotegen@localhost:5432/quotegen_ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: 'npm'
