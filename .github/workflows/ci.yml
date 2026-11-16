@@ -67,6 +67,22 @@ jobs:
       - name: Eval gate suite (run-eval.ts)
         run: npm run eval:pdfs
 
+      # Issue #4 - golden-file pixel regression (07 §5): rasterizes the three HP
+      # PDFs at 150 DPI and fails on >0.1% pixel drift per page. poppler-utils
+      # is preinstalled on ubuntu-latest; goldens in src/eval/golden/ are
+      # byte-comparable with local macOS runs (same poppler engine).
+      - name: Golden pixel regression (eval:golden)
+        id: golden
+        run: npm run eval:golden
+
+      - name: Upload diff artifacts on golden failure
+        if: always() && steps.golden.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: golden-diffs
+          path: src/eval/golden-out/diff/
+          if-no-files-found: ignore
+
       - name: Build (next build · server runtime)
         run: npm run build
 
