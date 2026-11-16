@@ -3,6 +3,7 @@ import {
   blockingStep,
   furthestAllowedStep,
   initialWizardState,
+  proformaBankGaps,
   numberedLines,
   stepComplete,
   validateStep1,
@@ -11,6 +12,7 @@ import {
   type WizardState,
 } from './state';
 import type { LineItem, QuoteDocument } from '@/domain/types';
+import { DEFAULT_COMPANY_PROFILE } from '@/domain/defaults';
 
 const line = (id: string, over: Partial<LineItem> = {}): LineItem => ({
   id, description: 'Supply of worktop', uom: 'u', qtyHundredths: 100, unitPriceHalalas: 530000, pricing: 'rated',
@@ -157,5 +159,21 @@ describe('step gating (FR-2.3 / AC-9)', () => {
       .toHaveProperty('commercials.advanceSplits');
     expect(stepComplete(2, { ...doc, commercials: { ...doc.commercials, advanceSplits: splits(7000, 3000) } })).toBe(true);
     expect(stepComplete(2, { ...doc, commercials: { ...doc.commercials, advanceSplits: [] } })).toBe(true);
+  });
+});
+
+describe('proforma bank advisory (#6)', () => {
+  it('names each blank bank field and stays silent when complete', () => {
+    expect(proformaBankGaps({ bankName: 'SIB', iban: 'SA 50', swift: 'SIBCSARI' })).toEqual([]);
+    expect(proformaBankGaps({ bankName: '  ', iban: 'SA 50', swift: '' })).toEqual(['bank name', 'SWIFT code']);
+    expect(proformaBankGaps({ bankName: '', iban: '', swift: '' })).toEqual(['bank name', 'IBAN', 'SWIFT code']);
+  });
+
+  it('the seeded defaults carry the full bank identity from the reference proforma', () => {
+    // Locks issue #6: the triple seeded from PROFORMA INVOICE 5799-00 must not
+    // regress to blanks — otherwise default proformas export without payment rails.
+    expect(DEFAULT_COMPANY_PROFILE.bankName).toBe('THE SAUDI INVESTMENT BANK');
+    expect(DEFAULT_COMPANY_PROFILE.swift).toBe('SIBCSARI');
+    expect(proformaBankGaps(DEFAULT_COMPANY_PROFILE)).toEqual([]);
   });
 });

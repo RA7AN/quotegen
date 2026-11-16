@@ -14,7 +14,7 @@ touches `calc.ts`, `pdf/*` or `theme.ts`).
 | 3 | Browser-level component tests (jsdom) | Wizard DOM coverage deferred by the Phase-3 pure-state tradeoff: step chips/gating, autosave + resume banner, line-editor commit rules, settings/quotes flows | 05 AC-7/8/10/12 | No (test depth) |
 | 4 | Golden-file pixel regression | Rasterised HP-fixture goldens + thresholded diff in CI; `--update-goldens` requires citing a 03 §6 allowed upgrade | 07 §5 | No (regression tooling) |
 | 5 | Settings: brand asset management | Logo upload/replace into a versioned `quotegen:assets:v1` envelope, resolver parity in the render path, quota-safe errors | 01 FR-5 (completeness) | No (feature gap) |
-| 6 | Bank identity in defaults + proforma advisory | `bankName`/`swift` ship empty; confirm authoritative values (reference PDF + 03 §4) or amend the kit; inline Step-3 advisory when blank | 03 §4 | No (content gap) |
+| 6 | Bank identity in defaults + proforma advisory | `bankName`/`swift` ship empty; confirm authoritative values (reference PDF + 03 §4) or amend the kit; inline Step-3 advisory when blank — **done**: triple seeded from `PROFORMA INVOICE 5799-00` (SIB / SIBCSARI) + non-blocking Step-3 advisory | 03 §4 | No (content gap) |
 
 ## Out-of-scope guardrails (unchanged from 04 §Non-Goals)
 

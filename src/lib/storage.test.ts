@@ -178,7 +178,9 @@ describe('company profile — FR-5.1 / FR-5.2', () => {
     expect(loadProfile(kv).bankName).toBe('Al Rajhi');
     const fresh = resetProfile(kv);
     expect(fresh).toEqual(DEFAULT_COMPANY_PROFILE);
-    expect(readProfile(kv)?.bankName).toBe('');
+    // #6: the factory profile now ships the full bank identity (reference proforma),
+    // so a reset restores the seeded value rather than an empty string.
+    expect(readProfile(kv)?.bankName).toBe(DEFAULT_COMPANY_PROFILE.bankName);
   });
 
   it('corrupt profile JSON reads as null (falls back to defaults)', () => {
