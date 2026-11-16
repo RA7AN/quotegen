@@ -11,7 +11,11 @@ export default defineConfig({
   // transform JSX itself, otherwise rolldown chokes on .tsx sources.
   oxc: { jsx: { runtime: 'automatic' } },
   test: {
+    // Node stays the default (the deterministic core + API-route tests need it and
+    // must stay Node-only per AC-28). Component tests opt into jsdom per-file with a
+    // `// @vitest-environment jsdom` docblock, so no global environment flip.
     environment: 'node',
-    include: ['src/**/*.{test,spec}.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    setupFiles: ['src/test/dom-setup.ts'],
   },
 });

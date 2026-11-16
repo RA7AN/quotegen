@@ -253,7 +253,26 @@ Run on `http://localhost:3000`, desktop + a mobile browser if available.
   (`--update`) must cite the 03 §6 allowed-upgrade entry or spec amendment in its
   description; reject silent golden-only diffs. `[07 §5, AC-19]`
 
-## 13. Sign-off
+## 13. Browser-level component tests (jsdom) `[issue #3 · AC-7/8/10/12]`
+
+The wizard chrome that `state.test.ts` only proves as pure functions now runs against a real
+DOM. Opt-in per file via `// @vitest-environment jsdom`, so `src/lib|domain|pdf` stay Node-only
+(AC-28 grep gate unchanged — confirm it still reports 0 core files on jsdom).
+
+- ☐ `npx vitest run` → 43 files / 346 tests green, including the four new `.tsx` suites:
+  `wizard.test.tsx` (chip `aria-current="step"`, forward chips disabled, Step-1 errors revealed
+  only after an attempted Continue, Resume/Start-fresh banner, corrupt-draft notice),
+  `line-item-editor.test.tsx` (decimal→halalas commit rules, inline `role="alert"`, move
+  boundaries, computed line price), `settings-view.test.tsx` (save/reset to profile storage),
+  and `recent-documents.test.tsx` (load/empty/401/open/download/confirm-delete). `[AC-7/8/10/12]`
+- ☐ No native dialogs: the resume/save/delete flows assert `window.alert`/`confirm` are never
+  called (EC-11 graceful degrade, AC-9 static gate still `no alert()/confirm()`). `[AC-9]`
+- ☐ Offline + deterministic: the PDF render, rehydrate, telemetry and reuse-library seams are
+  `vi.mock`-ed at module boundaries; no network or `@react-pdf` render runs. `[07 §2]`
+- ☐ Storage: `src/test/dom-setup.ts` supplies an in-memory `localStorage` (Node ≥22's global is
+  inert under jsdom); a shared store backs both the autosave/resume and settings assertions.
+
+## 14. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -269,6 +288,7 @@ Run on `http://localhost:3000`, desktop + a mobile browser if available.
 | 10 Multi-drafts | | |
 | 11 Export & chrome iteration | | |
 | 12 Golden pixel regression | | |
+| 13 jsdom component tests | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —
