@@ -42,13 +42,27 @@ export const STATIC_BRAND_ASSETS = {
   footerStripProforma: '/brand/footer-strip-proforma.png',
 } as const;
 
-/** Resolve the PdfAssets a client re-render needs from the stored profile. */
-export function assetsForProfile(profile: CompanyProfile): RenderAssets {
+/** Optional per-slot brand-image overrides (#5); falsy = keep the profile's bundled crop. */
+export type BrandAssetOverrides = { headerMark?: string | null; footerMark?: string | null };
+
+/**
+ * Resolve the PdfAssets a render needs from a profile, layering any device-local brand
+ * overrides (uploaded marks held in the `quotegen:assets:v1` slot) over the profile's
+ * bundled crop paths. The coloured bands are always the static bundled assets. Pure —
+ * the caller reads the overrides from storage; `src/pdf` stays a pure consumer of the
+ * resolved asset strings (data-URL in the browser, injected in Node).
+ */
+export function assetsWithOverrides(profile: CompanyProfile, overrides?: BrandAssetOverrides): RenderAssets {
   return {
-    headerMark: profile.logos.headerMark,
-    footerMark: profile.logos.footerMark,
+    headerMark: overrides?.headerMark || profile.logos.headerMark,
+    footerMark: overrides?.footerMark || profile.logos.footerMark,
     ...STATIC_BRAND_ASSETS,
   };
+}
+
+/** Resolve the PdfAssets a client re-render needs from the stored profile (no overrides). */
+export function assetsForProfile(profile: CompanyProfile): RenderAssets {
+  return assetsWithOverrides(profile);
 }
 
 /**

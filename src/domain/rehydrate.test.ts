@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseStoredPayload, assetsForProfile, STATIC_BRAND_ASSETS } from './rehydrate';
+import { parseStoredPayload, assetsForProfile, assetsWithOverrides, STATIC_BRAND_ASSETS } from './rehydrate';
 import { DEFAULT_COMPANY_PROFILE } from './defaults';
 import { createBlankQuoteDocument } from './defaults';
 import type { QuoteDocument } from './types';
@@ -46,5 +46,31 @@ describe('assetsForProfile (#12)', () => {
     expect(assets.footerMark).toBe('/x/f.png');
     expect(assets.headerBand).toBe(STATIC_BRAND_ASSETS.headerBand);
     expect(assets.footerStripProforma).toBe(STATIC_BRAND_ASSETS.footerStripProforma);
+  });
+});
+
+describe('#5 assetsWithOverrides', () => {
+  const profile = { ...DEFAULT_COMPANY_PROFILE, logos: { headerMark: '/x/h.png', footerMark: '/x/f.png' } };
+
+  it('lets a stored override replace the profile crop, leaving the other slot intact', () => {
+    const assets = assetsWithOverrides(profile, { headerMark: 'data:image/png;base64,AAA' });
+    expect(assets.headerMark).toBe('data:image/png;base64,AAA');
+    expect(assets.footerMark).toBe('/x/f.png');
+  });
+
+  it('falls back to the profile crop for a null / empty override', () => {
+    expect(assetsWithOverrides(profile, { headerMark: null }).headerMark).toBe('/x/h.png');
+    expect(assetsWithOverrides(profile, { footerMark: '' }).footerMark).toBe('/x/f.png');
+    expect(assetsWithOverrides(profile).headerMark).toBe('/x/h.png');
+  });
+
+  it('always keeps the coloured bands bundled regardless of overrides', () => {
+    const assets = assetsWithOverrides(profile, { headerMark: 'data:image/png;base64,AAA', footerMark: 'data:image/png;base64,BBB' });
+    expect(assets.headerBand).toBe(STATIC_BRAND_ASSETS.headerBand);
+    expect(assets.footerStrip).toBe(STATIC_BRAND_ASSETS.footerStrip);
+  });
+
+  it('assetsForProfile is the no-override path', () => {
+    expect(assetsForProfile(profile)).toEqual(assetsWithOverrides(profile));
   });
 });

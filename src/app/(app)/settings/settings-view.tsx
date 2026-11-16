@@ -3,19 +3,81 @@
  *
  * Client body mounted by the sibling `page.tsx` server wrapper (which owns the session
  * guard). Persists to localStorage via the storage codec; "reset to factory defaults"
- * restores the seeded Encompass/Elaf profile. Logo marks are bundled assets (03 §2)
- * and are shown read-only, not editable.
+ * restores the seeded Encompass/Elaf profile. Brand marks are editable (#5): an uploaded
+ * header/footer image is written to the separate `quotegen:assets:v1` slot (kept out of
+ * the profile so it never rides the autosave), with size/format guards and a reset-to-
+ * bundled-crops action. All feedback is inline — no native alert/confirm (AC-9).
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { browserKV, loadProfile, resetProfile, writeProfile } from '@/lib/storage';
+import { useEffect, useId, useState } from 'react';
+import {
+  browserKV,
+  loadBrandAssets,
+  loadProfile,
+  MAX_ASSET_BYTES,
+  resetAssets,
+  resetProfile,
+  validateImageFile,
+  writeAsset,
+  writeProfile,
+  type AssetKind,
+  type BrandAssets,
+} from '@/lib/storage';
 import { TextField, LinesTextArea, FloatingToast, FloatingToastStack } from '@/wizard/fields';
 import type { CompanyProfile } from '@/domain/types';
 
+/** Read a picked File into a base64 data URL (browser only). */
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/** One preview + file-picker row for a brand mark slot. */
+function MarkUpload({
+  label,
+  src,
+  overridden,
+  onPick,
+}: {
+  label: string;
+  src: string;
+  overridden: boolean;
+  onPick: (file: File | undefined) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-center gap-3">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={`${label} preview`}
+        className="h-14 w-14 shrink-0 rounded border border-neutral-300 bg-white object-contain"
+      />
+      <div className="min-w-0 flex-1">
+        <label htmlFor={id} className="block text-sm font-medium text-black">{label}</label>
+        <input
+          id={id}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          onChange={(e) => onPick(e.target.files?.[0])}
+          className="mt-1 block w-full text-sm text-muted file:mr-2 file:rounded file:border-0 file:bg-neutral-200 file:px-2 file:py-1 file:text-black"
+        />
+        {overridden && <p className="mt-0.5 text-xs text-muted">Using your uploaded image.</p>}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsView() {
   const [profile, setProfile] = useState<CompanyProfile>(() => loadProfile(browserKV()));
+  const [assets, setAssets] = useState<BrandAssets>(() => loadBrandAssets(browserKV()));
+  const [assetError, setAssetError] = useState('');
   const [status, setStatus] = useState('');
 
   const patch = (p: Partial<CompanyProfile>) => setProfile((cur) => ({ ...cur, ...p }));
@@ -29,6 +91,35 @@ export function SettingsView() {
   const reset = () => {
     setProfile(resetProfile(browserKV()));
     setStatus('Restored the factory Encompass/Elaf profile.');
+  };
+
+  const pickAsset = async (kind: AssetKind, file: File | undefined) => {
+    setAssetError('');
+    if (!file) return;
+    const invalid = validateImageFile(file);
+    if (invalid) {
+      setAssetError(invalid);
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const res = writeAsset(browserKV(), kind, dataUrl);
+      if (!res.ok) {
+        setAssetError(res.error === 'quota' ? 'Storage is full — try a smaller image.' : 'That image could not be saved.');
+        return;
+      }
+      setAssets((cur) => ({ ...cur, [kind]: dataUrl }));
+      setStatus('Brand mark updated — new documents will use it.');
+    } catch {
+      setAssetError('That image could not be read.');
+    }
+  };
+
+  const resetAssetUi = () => {
+    resetAssets(browserKV());
+    setAssets(loadBrandAssets(browserKV()));
+    setAssetError('');
+    setStatus('Restored the bundled brand marks.');
   };
 
   // Auto-dismiss the status toast after 5 s.
@@ -93,9 +184,34 @@ export function SettingsView() {
         </div>
       </section>
 
-      <section className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm">
-        <h2 className="text-xs font-bold uppercase tracking-wide text-muted">Brand marks (bundled assets)</h2>
-        <p className="text-muted">Header: {profile.logos.headerMark} · Footer: {profile.logos.footerMark}</p>
+      <section className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Brand marks</h2>
+          <button
+            type="button"
+            onClick={resetAssetUi}
+            className="rounded border border-neutral-400 px-3 py-1 text-xs hover:bg-neutral-100"
+          >
+            Reset to bundled crops
+          </button>
+        </div>
+        <p className="text-xs text-muted">
+          Replaced logos are stored on this device only (max {Math.round(MAX_ASSET_BYTES / 1024)} KB each) and are
+          kept out of the company profile. The header/footer colour bands stay bundled.
+        </p>
+        <MarkUpload
+          label="Header logo"
+          src={assets.headerMark || profile.logos.headerMark}
+          overridden={!!assets.headerMark}
+          onPick={(file) => void pickAsset('headerMark', file)}
+        />
+        <MarkUpload
+          label="Footer logo"
+          src={assets.footerMark || profile.logos.footerMark}
+          overridden={!!assets.footerMark}
+          onPick={(file) => void pickAsset('footerMark', file)}
+        />
+        {assetError && <p role="alert" className="text-sm font-medium text-red-700">{assetError}</p>}
       </section>
 
       {status && (

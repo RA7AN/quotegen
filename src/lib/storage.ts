@@ -35,6 +35,7 @@ export const KEYS = {
   quotes: 'quotegen:quotes:v1',
   profile: 'quotegen:profile:v1',
   theme: 'quotegen:theme:v1', // 'light' | 'dark'; absent = follow system
+  assets: 'quotegen:assets:v1', // #5 brand image overrides (data URLs kept OUT of profile/draft)
 } as const;
 
 /** Minimal Storage surface — localStorage in the browser, a Map in tests. */
@@ -307,6 +308,110 @@ export function resetProfile(kv: KVStorage): CompanyProfile {
   const fresh = structuredClone(DEFAULT_COMPANY_PROFILE);
   writeProfile(kv, fresh);
   return fresh;
+}
+
+// ---------------------------------------------------------------------------
+// Brand image assets (FR-5 completeness · issue #5)
+// ---------------------------------------------------------------------------
+
+/**
+ * User-replaced header/footer brand marks, stored SEPARATELY from the profile so a
+ * multi-hundred-KB base64 image never rides along in the profile/draft/quotes keys
+ * (those autosave on every keystroke — EC-12 quota lineage). `null` for a slot means
+ * "no override": the render path falls back to the bundled crop in profile.logos.
+ */
+export type BrandAssets = {
+  schemaVersion: number;
+  headerMark: string | null;
+  footerMark: string | null;
+};
+
+export type AssetKind = 'headerMark' | 'footerMark';
+
+/** Base64 data-URL image, restricted to the formats @react-pdf's <Image> accepts. */
+const DATA_IMAGE_RE = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/;
+
+/**
+ * Raw-upload ceiling. localStorage is a ~5 MB budget SHARED across every Quotegen
+ * slot; base64 inflates bytes ~4/3, so a 300 KB image costs ~400 KB of the store.
+ * Two marks at this cap stay well under quota even alongside saved drafts (EC-12).
+ */
+export const MAX_ASSET_BYTES = 300 * 1024;
+export const ACCEPTED_ASSET_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Inline (non-throwing) guard for a picked file; returns an error string or null. */
+export function validateImageFile(file: { type: string; size: number }): string | null {
+  if (!(ACCEPTED_ASSET_TYPES as readonly string[]).includes(file.type)) {
+    return 'Use a PNG, JPEG, GIF or WebP image.';
+  }
+  if (file.size === 0) return 'That file is empty.';
+  if (file.size > MAX_ASSET_BYTES) {
+    const kb = Math.round(file.size / 1024);
+    return `Image is too large (${kb} KB). Keep it under ${Math.round(MAX_ASSET_BYTES / 1024)} KB.`;
+  }
+  return null;
+}
+
+function emptyBrandAssets(): BrandAssets {
+  return { schemaVersion: STORAGE_SCHEMA_VERSION, headerMark: null, footerMark: null };
+}
+
+function cleanAsset(value: unknown): string | null {
+  return typeof value === 'string' && DATA_IMAGE_RE.test(value) ? value : null;
+}
+
+/** Decode the assets envelope. Absent / corrupt / foreign / future → null (EC-11 parity). */
+export function readAssets(kv: KVStorage): BrandAssets | null {
+  let parsed: unknown;
+  try {
+    const raw = kv.getItem(KEYS.assets);
+    if (raw === null) return null;
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const env = parsed as Record<string, unknown>;
+  const version = typeof env.schemaVersion === 'number' ? env.schemaVersion : 0;
+  if (version > STORAGE_SCHEMA_VERSION) return null; // from the future — refuse, don't corrupt
+  return { schemaVersion: STORAGE_SCHEMA_VERSION, headerMark: cleanAsset(env.headerMark), footerMark: cleanAsset(env.footerMark) };
+}
+
+/** Stored overrides, or an all-null (bundled-crop) envelope when absent/corrupt. */
+export function loadBrandAssets(kv: KVStorage): BrandAssets {
+  return readAssets(kv) ?? emptyBrandAssets();
+}
+
+export type AssetWriteResult = { ok: true } | { ok: false; error: 'quota' | 'invalid' };
+
+/**
+ * Set (dataUrl) or clear (null) one mark slot, keeping the other. Best-effort on the
+ * actual write: a QuotaExceededError is reported to the caller so the UI shows an inline
+ * error (never alert/confirm — AC-9). Rejects a malformed data URL before touching KV.
+ */
+export function writeAsset(kv: KVStorage, kind: AssetKind, dataUrl: string | null): AssetWriteResult {
+  const value = dataUrl === null ? null : cleanAsset(dataUrl);
+  if (dataUrl !== null && value === null) return { ok: false, error: 'invalid' };
+  const current = loadBrandAssets(kv);
+  const next: BrandAssets =
+    kind === 'headerMark'
+      ? { ...current, headerMark: value }
+      : { ...current, footerMark: value };
+  try {
+    kv.setItem(KEYS.assets, JSON.stringify(next));
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'quota' };
+  }
+}
+
+/** Drop every override so both marks fall back to the bundled Phase-2 crops. */
+export function resetAssets(kv: KVStorage): void {
+  try {
+    kv.removeItem(KEYS.assets);
+  } catch {
+    // Best-effort.
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -38,12 +38,14 @@ import {
   clearDraft,
   debounce,
   KEYS,
+  loadBrandAssets,
   loadProfile,
   readDraft,
   upsertQuote,
   writeDraft,
   type WizardStep,
 } from '@/lib/storage';
+import { assetsWithOverrides } from '@/domain/rehydrate';
 import type { PdfAssets } from '@/pdf/primitives';
 import type { Client, Closing, LineItem, QuoteDocument } from '@/domain/types';
 import { logActivity } from './telemetry';
@@ -182,11 +184,16 @@ export function Wizard() {
     if (resume !== 'found') autosave({ step: state.step, doc: state.doc });
   }, [state, resume, autosave]);
 
-  const assets: PdfAssets = { headerMark: profile.logos.headerMark, footerMark: profile.logos.footerMark, headerBand: '/brand/header-band.jpg', footerStrip: '/brand/footer-strip.jpg', footerStripProforma: '/brand/footer-strip-proforma.png' };
+  // #5: resolve brand marks through the shared resolver so a Settings-uploaded override
+  // (in the assets:v1 slot) replaces the bundled crop without touching profile/draft keys.
+  const assets: PdfAssets = useMemo(
+    () => assetsWithOverrides(profile, loadBrandAssets(browserKV())),
+    [profile],
+  );
   // #6: blank proforma bank fields render as omitted ACCOUNT DETAILS rows —
   // surface them as a Step-3 advisory (proforma template only, never blocking).
   const bankGaps = state.doc.template === 'proforma' ? proformaBankGaps(profile) : [];
-  const input = useMemo(() => makeInput(state.doc, profile, assets), [state.doc, profile, assets.headerMark, assets.footerMark, assets.headerBand, assets.footerStrip, assets.footerStripProforma]);
+  const input = useMemo(() => makeInput(state.doc, profile, assets), [state.doc, profile, assets]);
 
   const autoSaveClient = async (client: Client): Promise<void> => {
     const name = client.name.trim();

@@ -7,14 +7,20 @@ import {
   duplicateQuote,
   KEYS,
   listQuotes,
+  loadBrandAssets,
   loadProfile,
+  MAX_ASSET_BYTES,
   migrateDoc,
   normalizeRestoredStep,
   openQuoteAsDraft,
+  readAssets,
   readDraft,
   readProfile,
+  resetAssets,
   resetProfile,
   upsertQuote,
+  validateImageFile,
+  writeAsset,
   writeDraft,
   writeProfile,
   type KVStorage,
@@ -219,5 +225,83 @@ describe('browserKV — SSR safety', () => {
     const kv = browserKV();
     kv.setItem('k', 'v');
     expect(kv.getItem('k')).toBeNull();
+  });
+});
+
+describe('#5 brand asset codec — readAssets / loadBrandAssets', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+
+  it('returns null when the slot is absent, and an all-null envelope via load', () => {
+    const kv = memoryKV();
+    expect(readAssets(kv)).toBeNull();
+    expect(loadBrandAssets(kv)).toEqual({ schemaVersion: SCHEMA_VERSION, headerMark: null, footerMark: null });
+  });
+
+  it('decodes corrupt JSON and a future schemaVersion to null (EC-11 parity)', () => {
+    expect(readAssets(memoryKV({ [KEYS.assets]: '{not json' }))).toBeNull();
+    expect(readAssets(memoryKV({ [KEYS.assets]: JSON.stringify({ schemaVersion: SCHEMA_VERSION + 1, headerMark: PNG }) }))).toBeNull();
+  });
+
+  it('drops a non-image value in a slot but keeps a valid one', () => {
+    const kv = memoryKV({ [KEYS.assets]: JSON.stringify({ schemaVersion: SCHEMA_VERSION, headerMark: 'javascript:alert(1)', footerMark: PNG }) });
+    const assets = readAssets(kv);
+    expect(assets?.headerMark).toBeNull();
+    expect(assets?.footerMark).toBe(PNG);
+  });
+});
+
+describe('#5 brand asset codec — writeAsset / resetAssets', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+  const JPG = 'data:image/jpeg;base64,/9j/4AAQ=';
+
+  it('sets one slot and preserves the other', () => {
+    const kv = memoryKV();
+    expect(writeAsset(kv, 'headerMark', PNG)).toEqual({ ok: true });
+    expect(writeAsset(kv, 'footerMark', JPG)).toEqual({ ok: true });
+    expect(loadBrandAssets(kv)).toMatchObject({ headerMark: PNG, footerMark: JPG });
+  });
+
+  it('clears a slot when written null', () => {
+    const kv = memoryKV();
+    writeAsset(kv, 'headerMark', PNG);
+    writeAsset(kv, 'headerMark', null);
+    expect(loadBrandAssets(kv).headerMark).toBeNull();
+  });
+
+  it('rejects a malformed data URL without touching storage', () => {
+    const kv = memoryKV();
+    expect(writeAsset(kv, 'headerMark', 'data:application/pdf;base64,AAA')).toEqual({ ok: false, error: 'invalid' });
+    expect(kv.map.has(KEYS.assets)).toBe(false);
+  });
+
+  it('reports a quota failure when the write throws (EC-12)', () => {
+    const kv: KVStorage = {
+      getItem: () => null,
+      setItem: () => { throw new Error('QuotaExceededError'); },
+      removeItem: () => {},
+    };
+    expect(writeAsset(kv, 'headerMark', PNG)).toEqual({ ok: false, error: 'quota' });
+  });
+
+  it('resetAssets removes the whole envelope', () => {
+    const kv = memoryKV();
+    writeAsset(kv, 'headerMark', PNG);
+    resetAssets(kv);
+    expect(readAssets(kv)).toBeNull();
+  });
+});
+
+describe('#5 validateImageFile guards', () => {
+  it('accepts a supported, non-empty image within the size cap', () => {
+    expect(validateImageFile({ type: 'image/png', size: 10_000 })).toBeNull();
+  });
+  it('rejects an unsupported type', () => {
+    expect(validateImageFile({ type: 'image/svg+xml', size: 100 })).toMatch(/PNG, JPEG, GIF or WebP/);
+  });
+  it('rejects an empty file', () => {
+    expect(validateImageFile({ type: 'image/png', size: 0 })).toMatch(/empty/);
+  });
+  it('rejects an over-cap file and cites the limit', () => {
+    expect(validateImageFile({ type: 'image/png', size: MAX_ASSET_BYTES + 1 })).toMatch(/too large/);
   });
 });
