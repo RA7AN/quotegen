@@ -259,7 +259,7 @@ The wizard chrome that `state.test.ts` only proves as pure functions now runs ag
 DOM. Opt-in per file via `// @vitest-environment jsdom`, so `src/lib|domain|pdf` stay Node-only
 (AC-28 grep gate unchanged — confirm it still reports 0 core files on jsdom).
 
-- ☐ `npx vitest run` → 43 files / 346 tests green, including the four new `.tsx` suites:
+- ☐ `npx vitest run` → 43 files green (346 as of this slice, plus later additions), including the four new `.tsx` suites:
   `wizard.test.tsx` (chip `aria-current="step"`, forward chips disabled, Step-1 errors revealed
   only after an attempted Continue, Resume/Start-fresh banner, corrupt-draft notice),
   `line-item-editor.test.tsx` (decimal→halalas commit rules, inline `role="alert"`, move
@@ -272,7 +272,25 @@ DOM. Opt-in per file via `// @vitest-environment jsdom`, so `src/lib|domain|pdf`
 - ☐ Storage: `src/test/dom-setup.ts` supplies an in-memory `localStorage` (Node ≥22's global is
   inert under jsdom); a shared store backs both the autosave/resume and settings assertions.
 
-## 14. Sign-off
+## 14. Settings: brand asset management `[issue #5 · FR-5 completeness]`
+
+Header/footer logo marks become replaceable without touching `src/pdf` (marks resolve through
+`PdfAssets`; the header/footer colour bands stay bundled).
+
+- ☐ Upload a PNG/JPEG/GIF/WebP under 300 KB in Settings → a preview renders and a
+  `Using your uploaded image.` note appears; the bytes land in the `quotegen:assets:v1` slot,
+  **not** `quotegen:profile:v1` (verify both keys in DevTools). `[FR-5]`
+- ☐ Guards: an unsupported type (e.g. SVG/PDF), an empty file, and an over-cap file each show an
+  inline `role="alert"` message naming the limit — no `alert()`/`confirm()` (AC-9 static gate stays green). `[AC-9]`
+- ☐ Reset to bundled crops clears the slot; previews fall back to the bundled Phase-2 crops. `[FR-5.2]`
+- ☐ Render parity: after replacing the header mark, a newly generated quotation reflects the
+  override via the resolver; a re-render on a device with no override uses the stored profile's
+  bundled crop (deterministic in Node — `rehydrate`/`rerender` tests). `[AC-6]`
+- ☐ Codec robustness (`storage.test.ts`): corrupt JSON, a future `schemaVersion`, and a
+  non-image value each decode to `null`/drop-that-slot (never a throw); a full storage quota
+  surfaces `error: 'quota'` inline. `[EC-11, EC-12]`
+
+## 15. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -289,6 +307,7 @@ DOM. Opt-in per file via `// @vitest-environment jsdom`, so `src/lib|domain|pdf`
 | 11 Export & chrome iteration | | |
 | 12 Golden pixel regression | | |
 | 13 jsdom component tests | | |
+| 14 Brand asset management | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

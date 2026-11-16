@@ -8,8 +8,8 @@
  * raw storage slot (not component state) because the render path reads from
  * there on the next document.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { SettingsView } from './settings-view';
 import { KEYS } from '@/lib/storage';
 import { DEFAULT_COMPANY_PROFILE } from '@/domain/defaults';
@@ -65,5 +65,47 @@ describe('SettingsView save / reset (FR-5)', () => {
     expect((screen.getByLabelText('Legal name (EN)') as HTMLInputElement).value).toBe(
       DEFAULT_COMPANY_PROFILE.legalNameEn,
     );
+  });
+});
+
+describe('SettingsView brand mark upload / reset (#5)', () => {
+  it('rejects an unsupported image with an inline error and writes nothing', () => {
+    render(<SettingsView />);
+    fireEvent.change(screen.getByLabelText('Header logo'), {
+      target: { files: [new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' })] },
+    });
+    expect(screen.getByRole('alert').textContent).toMatch(/PNG, JPEG, GIF or WebP/);
+    expect(localStorage.getItem(KEYS.assets)).toBeNull();
+  });
+
+  it('writes an accepted upload to the assets slot — never the profile — and previews it', async () => {
+    const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+    // jsdom's FileReader is unreliable for data URLs; stub a synchronous reader.
+    class FakeFileReader {
+      onload: (() => void) | null = null;
+      result = PNG;
+      readAsDataURL() {
+        setTimeout(() => this.onload?.(), 0);
+      }
+    }
+    vi.stubGlobal('FileReader', FakeFileReader);
+    render(<SettingsView />);
+    fireEvent.change(screen.getByLabelText('Footer logo'), {
+      target: { files: [new File(['x'], 'footer.png', { type: 'image/png' })] },
+    });
+    await waitFor(() => expect(localStorage.getItem(KEYS.assets)).toContain('data:image/png'));
+    expect(localStorage.getItem(KEYS.profile)).toBeNull(); // bytes kept OUT of the profile
+    expect(screen.getAllByText('Using your uploaded image.').length).toBe(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('reset clears the assets slot back to the bundled crops', () => {
+    localStorage.setItem(
+      KEYS.assets,
+      JSON.stringify({ schemaVersion: 1, headerMark: 'data:image/png;base64,AAA', footerMark: null }),
+    );
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to bundled crops' }));
+    expect(localStorage.getItem(KEYS.assets)).toBeNull();
   });
 });

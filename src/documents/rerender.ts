@@ -10,7 +10,8 @@
  */
 import { makeInput } from '@/pdf/index';
 import type { PdfInput } from '@/pdf/input';
-import { parseStoredPayload, assetsForProfile } from '@/domain/rehydrate';
+import { parseStoredPayload, assetsWithOverrides } from '@/domain/rehydrate';
+import { browserKV, loadBrandAssets } from '@/lib/storage';
 
 export async function rehydrateById(
   id: string,
@@ -28,5 +29,8 @@ export async function rehydrateById(
 
   const parsed = parseStoredPayload((body as { payload?: unknown } | null)?.payload);
   if (!parsed) return null;
-  return makeInput(parsed.doc, parsed.profile, assetsForProfile(parsed.profile));
+  // #5: apply this device's uploaded brand overrides so a re-render matches what the
+  // wizard shows. In Node (no window) the reader is a no-op, so the stored profile's
+  // bundled crops win — re-render stays deterministic there.
+  return makeInput(parsed.doc, parsed.profile, assetsWithOverrides(parsed.profile, loadBrandAssets(browserKV())));
 }
