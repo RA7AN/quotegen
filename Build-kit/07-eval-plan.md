@@ -69,3 +69,10 @@ Any future change to `calc.ts`, `pdf/*`, or `theme.ts` must re-run the full harn
 visual review for both templates before merge; the oracle values in 02 §4 are immutable
 unless the reference documents themselves change (in which case update Output-ref and this
 kit together, in one commit).
+
+> Implemented tooling (#4): `npm run eval:golden` rasterizes the three HP fixture PDFs at
+> 150 DPI (poppler `pdftoppm`) and pixel-compares them against the committed goldens in
+> `src/eval/golden/`, failing above 0.1% differing pixels per page; the Gate suite runs it
+> on every push and uploads per-page diff PNGs as artifacts on failure. Intentional visual
+> changes are re-baselined with `npm run eval:golden -- --update`, and the PR must cite the
+> 03 §6 allowed-upgrade entry or spec amendment justifying each change, per this policy.

@@ -240,7 +240,20 @@ Run on `http://localhost:3000`, desktop + a mobile browser if available.
 
 ---
 
-## 12. Sign-off
+## 12. Golden-file pixel regression `[issue #4 · 07 §5]`
+
+- ☐ `npm run eval:pdfs && npm run eval:golden` → all 5 committed pages report `ok` at 0 px
+  drift; exit 0. `[07 §5]`
+- ☐ Tamper check: overwrite any `src/eval/golden/*.png` with a white rectangle drawn over a
+  content region → the run reports `DRIFT` for that page, exits 1, and leaves a red-marked
+  diff PNG in `src/eval/golden-out/diff/`; restoring the golden makes it pass again. `[07 §5]`
+- ☐ CI: the Gate suite shows a `Golden pixel regression (eval:golden)` step; on a deliberate
+  drift push the `golden-diffs` artifact zip contains the failing pages. `[07 §5]`
+- ☐ Governance: any PR touching `pdf/*`, `theme.ts` or `calc.ts` that re-baselines goldens
+  (`--update`) must cite the 03 §6 allowed-upgrade entry or spec amendment in its
+  description; reject silent golden-only diffs. `[07 §5, AC-19]`
+
+## 13. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -255,6 +268,7 @@ Run on `http://localhost:3000`, desktop + a mobile browser if available.
 | 9 Segmented doc number | | |
 | 10 Multi-drafts | | |
 | 11 Export & chrome iteration | | |
+| 12 Golden pixel regression | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —
