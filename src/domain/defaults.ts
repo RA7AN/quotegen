@@ -20,9 +20,13 @@ export const DEFAULT_COMPANY_PROFILE: CompanyProfile = {
   website: 'WWW.ENCOMPASSGROUPSA.COM',
   vatNo: '302000666700003',
   crNo: '4030183422',
-  bankName: '',
+  // #6: bank identity from the reference proforma (Output-ref/PROFORMA INVOICE
+  //  5799-00 .pdf ACCOUNT DETAILS block, per 03 §4) — the IBAN above already
+  // matched it; these complete the triple. Empty values here render as omitted
+  // rows on the proforma, so the Step-3 advisory (proformaBankGaps) flags them.
+  bankName: 'THE SAUDI INVESTMENT BANK',
   iban: 'SA 50 6500 0000 2354 1754 8001',
-  swift: '',
+  swift: 'SIBCSARI',
   signatory: { name: '', title: '', mobile: '', email: '' },
   logos: { headerMark: '/brand/header-mark.png', footerMark: '/brand/footer-mark.png' },
 };

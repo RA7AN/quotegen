@@ -24,6 +24,7 @@ import {
   blockingStep,
   furthestAllowedStep,
   initialWizardState,
+  proformaBankGaps,
   validateStep,
   wizardReducer,
   type FieldErrors,
@@ -182,6 +183,9 @@ export function Wizard() {
   }, [state, resume, autosave]);
 
   const assets: PdfAssets = { headerMark: profile.logos.headerMark, footerMark: profile.logos.footerMark, headerBand: '/brand/header-band.jpg', footerStrip: '/brand/footer-strip.jpg', footerStripProforma: '/brand/footer-strip-proforma.png' };
+  // #6: blank proforma bank fields render as omitted ACCOUNT DETAILS rows —
+  // surface them as a Step-3 advisory (proforma template only, never blocking).
+  const bankGaps = state.doc.template === 'proforma' ? proformaBankGaps(profile) : [];
   const input = useMemo(() => makeInput(state.doc, profile, assets), [state.doc, profile, assets.headerMark, assets.footerMark, assets.headerBand, assets.footerStrip, assets.footerStripProforma]);
 
   const autoSaveClient = async (client: Client): Promise<void> => {
@@ -492,6 +496,7 @@ export function Wizard() {
             savedSignoffs={savedSignoffs}
             onPickSignoff={pickSignoff}
             onRemoveSignoff={removeSavedSignoff}
+            bankGaps={bankGaps}
           />
         )}
         {state.step === 4 && (

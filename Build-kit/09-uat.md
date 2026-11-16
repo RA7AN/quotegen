@@ -86,6 +86,13 @@ Mirrors `PROFORMA INVOICE 5799-00`.
 - ☐ In the PDF: `included` prints literally in the Unit Rate/Total cells; MODE OF PAYMENT +
   ACCOUNT DETAILS block present (bank, IBAN, C.R, SWIFT) with the Arabic legal-name line
   rendering right-to-left. `[03 §4, AC-16]`
+- ☐ **#6 defaults:** on a device with no saved profile, ACCOUNT DETAILS shows
+  `BANK NAME: THE SAUDI INVESTMENT BANK` and `SWIFT - SIBCSARI` exactly as in the
+  reference — no blanked-out rows. `[03 §4]`
+- ☐ **#6 advisory:** blank the SWIFT field in Settings → Company settings, open a proforma
+  wizard at Step 3 → gold notice names the missing field(s) with a link to the Bank section;
+  it never blocks navigation or export and disappears once the field is filled. Quotation
+  template never shows it. `[FR-2, AC-9]`
 
 ---
 

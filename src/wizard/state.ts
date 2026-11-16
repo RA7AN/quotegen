@@ -13,6 +13,7 @@ import type {
   AdvanceSplit,
   Client,
   Closing,
+  CompanyProfile,
   Commercials,
   LineItem,
   Meta,
@@ -188,4 +189,19 @@ export function blockingStep(doc: QuoteDocument, target: WizardStep): WizardStep
 /** Sequence-numbered lines for display (FR-3.2): index + 1, contiguous by construction. */
 export function numberedLines(doc: QuoteDocument): ReadonlyArray<{ sno: number; line: LineItem }> {
   return doc.lines.map((line, i) => ({ sno: i + 1, line }));
+}
+
+/**
+ * #6: the proforma ACCOUNT DETAILS block silently omits any blank bank field
+ * (AcctRow skips empty values), so a payment document could export without the
+ * bank name / IBAN / SWIFT the reference always shows. Returns the human labels
+ * of whatever is missing — Step 3 turns a non-empty result into a pre-export
+ * advisory. Advisory only: never blocks navigation, render, or determinism.
+ */
+export function proformaBankGaps(profile: Pick<CompanyProfile, 'bankName' | 'iban' | 'swift'>): string[] {
+  const gaps: string[] = [];
+  if (!profile.bankName.trim()) gaps.push('bank name');
+  if (!profile.iban.trim()) gaps.push('IBAN');
+  if (!profile.swift.trim()) gaps.push('SWIFT code');
+  return gaps;
 }

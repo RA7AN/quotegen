@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { TextField, RichInput, RichTextArea, SectionCard, inputClass } from './fields';
 import { ConfirmDialog } from './confirm-dialog';
 import { SignoffPicker } from './signoff-picker';
@@ -32,12 +33,15 @@ export function Step3Terms({
   savedSignoffs = [],
   onPickSignoff,
   onRemoveSignoff,
+  bankGaps = [],
 }: {
   doc: QuoteDocument;
   dispatch: (a: WizardAction) => void;
   savedSignoffs?: StoredSignoff[];
   onPickSignoff?: (block: Closing) => void;
   onRemoveSignoff?: (id: string) => void;
+  /** #6: labels of blank proforma bank fields (empty = nothing to advise). */
+  bankGaps?: string[];
 }) {
   const clauses = doc.terms.clauses;
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -87,7 +91,19 @@ export function Step3Terms({
     setDismissed([]); // re-surface the suggestions too
   };
 
+  // The advisory sits OUTSIDE the tinted-card wrapper so the nth-child(even)
+  // alternation of the SectionCards below keeps its parity (issue #6).
   return (
+    <>
+      {bankGaps.length > 0 && (
+        <div role="status" className="mb-4 rounded border border-gold bg-yellow-50 px-3 py-2 text-sm dark:bg-yellow-950/40">
+          This proforma's ACCOUNT DETAILS will be missing the{' '}
+          <strong>{bankGaps.join(' and ')}</strong> — add{' '}
+          {bankGaps.length === 1 ? 'it' : 'them'} in{' '}
+          <Link href="/settings" className="font-medium underline hover:text-gold-light">Settings → Bank (proforma)</Link>{' '}
+          before exporting.
+        </div>
+      )}
     <div className="space-y-4 [&>section:nth-child(even)]:bg-neutral-100">
       <SectionCard
         title="Terms & Conditions"
@@ -182,6 +198,7 @@ export function Step3Terms({
         }}
       />
     </div>
+    </>
   );
 }
 
