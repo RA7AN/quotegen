@@ -4,9 +4,10 @@
  * Rasterizes the three HP fixture PDFs (already rendered into src/eval/out/ by
  * `npm run eval:pdfs`) at a fixed DPI with poppler's `pdftoppm`, then compares
  * every page pixel-by-pixel against the committed goldens in src/eval/golden/.
- * The same engine runs on macOS (brew install poppler) and in CI (poppler-utils
- * is preinstalled on ubuntu-latest), so goldens are byte-comparable across
- * platforms — unlike a JS rasterizer, whose antialiasing differs per build.
+ * The same engine runs on macOS (brew install poppler) and in CI (an explicit
+ * apt-get step; poppler is NOT preinstalled on ubuntu-latest), so goldens are
+ * byte-comparable across platforms — unlike a JS rasterizer, whose
+ * antialiasing differs per build.
  *
  * Usage:
  *   npm run eval:golden                  # compare; exit 1 on drift or missing goldens
@@ -57,7 +58,7 @@ function requirePdftoppm(): void {
     throw new Error(
       'pdftoppm not found — install poppler first:\n' +
         '  macOS:  brew install poppler\n' +
-        '  Debian/Ubuntu (CI): apt-get install -y poppler-utils (preinstalled on ubuntu-latest)',
+        '  Debian/Ubuntu (CI): sudo apt-get install -y poppler-utils (the Gate suite does this)',
     );
   }
 }

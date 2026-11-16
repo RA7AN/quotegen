@@ -69,8 +69,13 @@ jobs:
 
       # Issue #4 - golden-file pixel regression (07 §5): rasterizes the three HP
       # PDFs at 150 DPI and fails on >0.1% pixel drift per page. poppler-utils
-      # is preinstalled on ubuntu-latest; goldens in src/eval/golden/ are
-      # byte-comparable with local macOS runs (same poppler engine).
+      # is NOT preinstalled on ubuntu-latest (verified in run 43818395535); the
+      # apt build must match the brew one for byte-comparable rasterization -
+      # if a future runner image changes poppler, re-baseline goldens via
+      # --update in a PR citing 07 §5.
+      - name: Install poppler (pdftoppm for golden rasterization)
+        run: sudo apt-get update -q && sudo apt-get install -yq poppler-utils
+
       - name: Golden pixel regression (eval:golden)
         id: golden
         run: npm run eval:golden
