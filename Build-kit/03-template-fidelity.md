@@ -63,9 +63,12 @@ those for body vs secondary text.
 ## 3. Template A — `quotation` (2-page shape)
 
 ### 3.1 Title strip (page 1, under header band)
-- Left: the word **"QUOTATION"** in very large (~54pt) black bold sans, tight tracking.
+- Left: the word **"QUOTATION"** in very large black bold sans, tight tracking. Settled size:
+  **52pt** (`styles.titleWord`) — see amendment A-3 in §6.1. The Proforma title keeps its own
+  inline override (34pt) because "PROFORMA INVOICE" is a longer single-line string.
 - Right (same row, right-aligned, `#7D7D7D`, ~9pt): issuing-entity block —
-  legal name, address lines, phones, website, `VAT: …`, `C.R: …`.
+  legal name (bold ink, with a **horizontal** bar rule under it via the explicit `styles.entityRule`
+  `View`, see A-4), address lines, phones, website, `VAT: …`, `C.R: …`.
 - (This is `word/media/image1.png` in the source; rebuild as live text so it stays crisp
   and editable via Settings.)
 
@@ -143,3 +146,22 @@ uppercase. Record the mapping in `theme.ts`:
 
 Anything not on this list must match the reference exactly. Reviewers diff against the
 reference PDFs page-by-page.
+
+### 6.1 Spec amendments (intentional golden re-baselines)
+
+These are deliberate, measured changes to the fidelity target — each re-baselines the goldens
+under 07 §5.
+
+- **A-3 — quotation title size (#31 part 2).** PR #29 scaled `styles.titleWord` 54 → 42pt to
+  balance the taller entity block; that overcorrected and the header read weak. Settled at
+  **52pt** by side-by-side with `ENCM-178-26-6824.pdf` p1 (reference "QUOTATION" ≈ 284pt wide,
+  ≈ 40pt cap height @150 DPI). Our Arimo Bold display face is wider and shorter than the
+  reference face, so **word width** is the governing dimension — 52pt matches the reference width
+  to ~3%. The Proforma title is unchanged (34pt): "PROFORMA INVOICE" already fills the line, so a
+  larger size would wrap it.
+- **A-4 — entity-block rule orientation (#31 part 3).** The rule under the bold legal name rendered
+  as a **vertical** mark, not horizontal. Cause: a `borderBottom` on a `Text` node inside the
+  `alignItems: 'flex-end'` column — react-pdf mis-paints the measured text-box border. Fix: drop
+  the Text border and draw an explicit 1pt horizontal `View` (`styles.entityRule`,
+  `alignSelf: 'stretch'`) under the name. Shared `EntityBlock`, so it applies to **both** the
+  quotation and proforma templates.

@@ -290,7 +290,21 @@ Header/footer logo marks become replaceable without touching `src/pdf` (marks re
   non-image value each decode to `null`/drop-that-slot (never a throw); a full storage quota
   surfaces `error: 'quota'` inline. `[EC-11, EC-12]`
 
-## 15. Sign-off
+## 15. PDF header fidelity: title size + entity rule `[issue #31 parts 2 & 3 · 03 §3.1/§6.1]`
+
+Two header defects fixed in `src/pdf/primitives.tsx`; goldens re-baselined (amendments A-3/A-4).
+
+- ☐ Quotation title `QUOTATION` renders large/prominent again at **52pt** (was overcorrected to
+  42pt in PR #29), matching `ENCM-178-26-6824.pdf` word width to ~3%. `[03 §3.1, A-3]`
+- ☐ Proforma title stays **34pt** — "PROFORMA INVOICE" fills the line and does not wrap; the two
+  templates read proportionate. `[A-3]`
+- ☐ The rule under the bold issuing-entity name is **horizontal** (a 1pt `entityRule` `View`), not
+  the previous vertical mark, in **both** quotation and proforma PDFs. `[A-4]`
+- ☐ Golden regression: `npm run eval:golden` reports 5 pages at 0 px against the re-baselined
+  goldens; `eval:pdfs` 26/26; AC-24/28/9 static gates stay green (core pure, no clock/random,
+  no dialogs). `[07 §5]`
+
+## 16. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -308,6 +322,7 @@ Header/footer logo marks become replaceable without touching `src/pdf` (marks re
 | 12 Golden pixel regression | | |
 | 13 jsdom component tests | | |
 | 14 Brand asset management | | |
+| 15 PDF header fidelity (title + entity rule) | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —
