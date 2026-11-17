@@ -46,15 +46,14 @@ export const styles = StyleSheet.create({
   titleWord: {
     fontFamily: FONTS.display,
     fontWeight: 700,
-    fontSize: 42,
+    fontSize: 52,
     letterSpacing: -0.5,
     color: COLORS.ink,
     lineHeight: 1,
   },
   entityBlock: { flex: 1, alignItems: 'flex-end', marginTop: 6 },
-  // Issuing-entity title: bold ink with a bar rule under it separating the name
-  // from the address/contact lines (border lives on the Text so the rule spans
-  // exactly the content width, right-aligned with the block).
+  // Issuing-entity title: bold ink name; the separating rule is a separate View
+  // (see entityRule) so the border never lives on the Text node.
   entityName: {
     fontFamily: FONTS.body,
     fontWeight: 700,
@@ -62,10 +61,17 @@ export const styles = StyleSheet.create({
     color: COLORS.ink,
     lineHeight: 1.35,
     textAlign: 'right',
-    paddingBottom: 4,
+  },
+  // Horizontal bar rule under the entity name, separating it from the address/
+  // contact lines (03 §3.1). Drawn as an explicit 1pt View, NOT a borderBottom on
+  // the Text node: react-pdf mis-paints a text-box border inside this flex-end
+  // column as a vertical mark (#31 part 3). alignSelf stretch spans the block.
+  entityRule: {
+    height: 1,
+    backgroundColor: COLORS.ink,
+    alignSelf: 'stretch',
+    marginTop: 3,
     marginBottom: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.ink,
   },
   entityLine: { fontFamily: FONTS.body, fontSize: 9, color: COLORS.muted, lineHeight: 1.35, textAlign: 'right' },
 
@@ -170,6 +176,7 @@ export function EntityBlock({ profile }: { profile: CompanyProfile }) {
   return (
     <View style={styles.entityBlock}>
       {profile.legalNameEn ? <Text style={styles.entityName}>{profile.legalNameEn}</Text> : null}
+      {profile.legalNameEn ? <View style={styles.entityRule} /> : null}
       {lines.map((l, i) => (
         <Text key={i} style={styles.entityLine}>{l}</Text>
       ))}
