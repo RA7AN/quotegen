@@ -148,6 +148,39 @@ export const drafts = pgTable(
 );
 
 /**
+ * Per-user issuing-company profile + brand marks (#38). Moves the company identity
+ * out of device-local localStorage so it follows the account across devices and is
+ * invisible to other accounts on a shared browser.
+ *
+ * `payload` holds the full validated CompanyProfile (the render input); the two brand
+ * mark overrides live in their OWN columns (base64 data URLs, the #5 guards apply) so
+ * a multi-hundred-KB image never bloats the profile JSON the way it would a localStorage
+ * slot. Marks are nullable: null = "no override", fall back to the profile's bundled crop.
+ *
+ * Designed to hold N rows per user for #31 part 1 (a saved-profile library with a
+ * per-quote picker): `name` labels each row and `isDefault` marks the active one. This
+ * issue ships the single-active-profile UX — the API reads/updates the `isDefault` row —
+ * so there is deliberately NO unique constraint on userId (that would block the library).
+ */
+export const profiles = pgTable(
+  'profiles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull().default('Company profile'), // picker label (#31 part 1)
+    isDefault: boolean('is_default').notNull().default(true), // the active profile for this user
+    payload: jsonb('payload').notNull(), // CompanyProfile (validated by CompanyProfileSchema)
+    headerMark: text('header_mark'), // base64 data-URL override or null (bundled crop)
+    footerMark: text('footer_mark'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('profiles_user_idx').on(t.userId), index('profiles_user_default_idx').on(t.userId, t.isDefault)],
+);
+
+/**
  * Better Auth session/account/verification tables (#9). `user` is defined above
  * (documents.userId references it). Ids/timestamps are written by Better Auth, so
  * no DB-side defaults are required.
@@ -198,6 +231,7 @@ export type ActivityEvent = typeof events.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type SignoffBlock = typeof signoffBlocks.$inferSelect;
 export type Draft = typeof drafts.$inferSelect;
+export type Profile = typeof profiles.$inferSelect;
 export type AuthUser = typeof user.$inferSelect;
 export type AuthSession = typeof session.$inferSelect;
 
@@ -205,4 +239,4 @@ export type AuthSession = typeof session.$inferSelect;
  * Aggregated for `drizzle(client, { schema })` and the Better Auth adapter, which
  * resolves models by these exact singular keys.
  */
-export const schema = { user, session, account, verification, documents, events, clients, signoffBlocks, drafts };
+export const schema = { user, session, account, verification, documents, events, clients, signoffBlocks, drafts, profiles };

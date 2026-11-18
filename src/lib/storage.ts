@@ -356,7 +356,13 @@ function emptyBrandAssets(): BrandAssets {
   return { schemaVersion: STORAGE_SCHEMA_VERSION, headerMark: null, footerMark: null };
 }
 
-function cleanAsset(value: unknown): string | null {
+/**
+ * Validate a stored/submitted brand-mark value: a base64 image data URL of an accepted
+ * type, or null. Exported so the server profile route (#38) reuses the exact same guard
+ * as the localStorage codec instead of re-deriving it (server importing the pure core is
+ * allowed by AC-24; the reverse never happens).
+ */
+export function cleanAsset(value: unknown): string | null {
   return typeof value === 'string' && DATA_IMAGE_RE.test(value) ? value : null;
 }
 

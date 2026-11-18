@@ -39,6 +39,7 @@ vi.mock('./library', () => ({
   fetchDrafts: vi.fn(async () => []),
   persistDraft: vi.fn(async () => null),
   removeDraft: vi.fn(async () => false),
+  fetchProfile: vi.fn(async () => null),
 }));
 
 import { Wizard } from './wizard';

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { registerFonts } from '@/pdf/theme';
 import { renderToBlob } from '@/pdf/index';
 import { ConfirmDialog } from '@/wizard/confirm-dialog';
+import { fetchProfile, type ProfileAssetPair } from '@/wizard/library';
 import { rehydrateById } from './rerender';
 
 // Browser font registration (bundled TTFs at /fonts/*), idempotent — same as the wizard.
@@ -33,6 +34,10 @@ export function RecentDocuments() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Summary | null>(null);
+  // #38: the account's server-sourced brand marks, layered onto re-renders so a reopened
+  // PDF matches the marks the user has on any device. null (anonymous / not yet loaded) →
+  // rehydrateById falls back to the device-local slot, unchanged.
+  const [markOverrides, setMarkOverrides] = useState<ProfileAssetPair | null>(null);
   const blobUrl = useRef<string | null>(null);
 
   // Load (or reload) the user's stored documents. Shared by mount and post-delete refresh.
@@ -59,6 +64,10 @@ export function RecentDocuments() {
     void (async () => {
       if (!cancelled) await load();
     })();
+    // Best-effort, session-checked: fetchProfile makes zero calls when signed out.
+    void fetchProfile().then((sp) => {
+      if (!cancelled && sp) setMarkOverrides(sp.assets);
+    });
     return () => {
       cancelled = true;
       if (blobUrl.current) URL.revokeObjectURL(blobUrl.current);
@@ -71,7 +80,7 @@ export function RecentDocuments() {
     setBusyId(id);
     setError(null);
     try {
-      const input = await rehydrateById(id);
+      const input = await rehydrateById(id, fetch, markOverrides);
       if (!input) {
         setError('That document could not be reopened.');
         return null;
