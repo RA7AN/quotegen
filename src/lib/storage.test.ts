@@ -16,6 +16,7 @@ import {
   readAssets,
   readDraft,
   readProfile,
+  readProfilePick,
   resetAssets,
   resetProfile,
   upsertQuote,
@@ -23,6 +24,7 @@ import {
   writeAsset,
   writeDraft,
   writeProfile,
+  writeProfilePick,
   type KVStorage,
   type SavedQuote,
 } from './storage';
@@ -191,6 +193,28 @@ describe('company profile — FR-5.1 / FR-5.2', () => {
 
   it('corrupt profile JSON reads as null (falls back to defaults)', () => {
     expect(readProfile(memoryKV({ [KEYS.profile]: '{oops' }))).toBeNull();
+  });
+});
+
+describe('per-quote profile pick — #31 part 1', () => {
+  it('reads null when nothing is chosen (account default)', () => {
+    expect(readProfilePick(memoryKV())).toBeNull();
+  });
+
+  it('round-trips a chosen library-profile id in its own slot', () => {
+    const kv = memoryKV();
+    writeProfilePick(kv, 'p-42');
+    expect(readProfilePick(kv)).toBe('p-42');
+    expect(kv.map.get(KEYS.profilePick)).toBe('p-42');
+  });
+
+  it('clears the slot on null / empty (back to the account default)', () => {
+    const kv = memoryKV({ [KEYS.profilePick]: 'p-42' });
+    writeProfilePick(kv, null);
+    expect(kv.map.has(KEYS.profilePick)).toBe(false);
+    writeProfilePick(kv, 'p-7');
+    writeProfilePick(kv, '');
+    expect(readProfilePick(kv)).toBeNull();
   });
 });
 

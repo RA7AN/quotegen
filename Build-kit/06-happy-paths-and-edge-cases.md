@@ -64,6 +64,23 @@ manually. Each ends in a downloaded PDF.
 
 ---
 
+## HP-6 — Company-profile library + per-quote picker (#31 part 1)
+
+1. In Settings, edit the profile and **Save a copy as new** (name it "Branch X"). The new row
+   appears in **My profiles**; the editor is now bound to it (marked *Editing*), so further saves
+   PATCH that row and leave the account default untouched.
+2. **Set as default** on a second row: it gains the *Default* badge; a **Delete** routes through the
+   in-app confirm (no native dialog) and, if the default row is deleted, the most-recent survivor is
+   promoted so an active profile always exists.
+3. In the wizard (Meta step or Review step) the profile picker lists the saved profiles. **Use for
+   this quote** on "Branch X" re-renders the preview letterhead from it without changing the account
+   default; reload the tab and the same row is still in use (the pick persisted for this draft).
+   **Use account default instead** clears it back.
+4. **Expected**: export/preview always snapshot the *currently applied* full profile, so a document
+   rendered from "Branch X" is byte-identical on re-render and independent of later default changes.
+
+---
+
 ## Edge cases (must not break determinism or layout)
 
 - **EC-1 Fractional qty**: qty `0.5`, unit `199.99` → line price `100.00` (round half-up),
@@ -95,3 +112,11 @@ manually. Each ends in a downloaded PDF.
   read errors (preview / pre-migration), `setupComplete` degrades **open** so the app shell
   stays reachable instead of bouncing to `/onboarding` forever; the wizard still works
   device-locally (finishing writes the profile and syncs best-effort when a session exists).
+- **EC-16 Profile picker degrades to nothing**: an anonymous run or an account with no saved
+  profiles shows **no** picker chrome (the disclosure collapses to null), leaving the single
+  device-local / account-default flow exactly as before #31. Library reads are session-checked and
+  best-effort, so a network failure never blocks the wizard.
+- **EC-17 Stale per-quote pick**: if the persisted row id no longer resolves (deleted / foreign /
+  signed out on another device), the wizard self-clears the pick and falls back to the account
+  default rather than rendering with a missing profile; the export was already deterministic because
+  it snapshots the full profile, never the id.

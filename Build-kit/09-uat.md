@@ -373,7 +373,37 @@ setup wizard; a server-side `setupComplete` marker gates the app shell until it 
   and `eval:golden` 5 pages @ 0 px (no `src/pdf` change); no `alert()`/`confirm()`; core stays
   server-free. `[AC-24/28/9]`
 
-## 19. Sign-off
+## 19. Company-profile library + per-quote picker `[issue #31 part 1 · 01 FR-5.5, AC-6/9/24/28 · HP-6, EC-16/EC-17]`
+
+A signed-in account keeps several named company profiles and renders any one of them per quote
+without changing the account default. Built on the existing `profiles` table (no migration).
+
+- ☐ No migration: `listProfiles`/`getProfileById`/`createProfile`/`updateProfile`/`setActiveProfile`/
+  `deleteProfile` operate on the #38 table as-is (it already carried `name` + `isDefault` with no
+  `userId` unique constraint); `drizzle` has no new snapshot for this change. `[AC-24]`
+- ☐ Save-as: Settings → edit a field → **Save a copy as new** creates a named row and binds the
+  editor to it (marked *Editing*); the account default row is left untouched. `[FR-5.5]`
+- ☐ Bound writes: with a row bound, **Save** PATCHes that row (`/api/profiles/<id>`), not the
+  singular `/api/profile` PUT; renaming via **Rename current** updates only the label. `[FR-5.5]`
+- ☐ Promote / delete: **Set as default** flips exactly one row (two-statement update; no
+  transaction needed); **Delete** routes through the in-app confirm (no native dialog) and, when the
+  default is removed, the most-recent survivor is promoted so an active profile always exists. `[HP-6, AC-9]`
+- ☐ Per-quote picker: the wizard's Meta and Review steps list the saved profiles; **Use for this
+  quote** re-renders the preview letterhead from that row without changing the default; **Use
+  account default instead** reverts. `[FR-5.5]`
+- ☐ Persist + self-clear: the chosen row id is stored in `quotegen:profile-pick:v1` and re-applied
+  on reload; a stale/deleted id resolves to nothing, clears itself, and falls back to the default. `[EC-17]`
+- ☐ Degradation (EC-16): an anonymous run or an account with no saved profiles shows **no** picker
+  and the singular active-profile path is byte-for-byte the pre-#31 behaviour. `[EC-16, AC-9]`
+- ☐ Determinism preserved: the export snapshots the FULL applied profile into `documents.payload`,
+  so a document rendered from a non-default row is unchanged by later default edits; goldens stay
+  0 px (no `src/pdf` change) and `eval:pdfs` 26/26. `[AC-6/24/28]`
+- ☐ API contract: `/api/profiles` (GET list / POST create) and `/api/profiles/[id]` (GET/PATCH/
+  DELETE) are session- + creds-guarded (401 signed-out, 404 malformed/unknown id, 400 bad payload /
+  blank name), `force-dynamic`; `parseProfileBody` reuses the shared `CompanyProfileSchema` +
+  `cleanAsset` guards. `[AC-24]`
+
+## 20. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -395,6 +425,7 @@ setup wizard; a server-side `setupComplete` marker gates the app shell until it 
 | 16 Show-password toggle | | |
 | 17 Server-side profile + brand marks | | |
 | 18 First-run onboarding | | |
+| 19 Profile library + per-quote picker | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —
