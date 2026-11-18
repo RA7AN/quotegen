@@ -14,7 +14,7 @@
  * src/db/signoff.ts.
  */
 import { getSession } from '@/auth/client';
-import type { Client, Closing, QuoteDocument } from '@/domain/types';
+import type { Client, Closing, CompanyProfile, QuoteDocument } from '@/domain/types';
 import type { WizardStep } from '@/lib/storage';
 
 export type StoredClient = { id: string; name: string; custId: string; data: Client; updatedAt: string };
@@ -174,4 +174,52 @@ export async function persistDraft(args: {
 export async function removeDraft(id: string): Promise<boolean> {
   if (!(await authed())) return false;
   return write(`/api/drafts/${encodeURIComponent(id)}`, 'DELETE');
+}
+
+// ---------------------------------------------------------------------------
+// Server-backed company profile + brand marks (#38)
+// ---------------------------------------------------------------------------
+
+/** The two brand-mark overrides that ride alongside the profile (null = bundled crop). */
+export type ProfileAssetPair = { headerMark: string | null; footerMark: string | null };
+/** A stored server profile: the validated CompanyProfile plus its mark overrides. */
+export type ServerProfile = { profile: CompanyProfile; assets: ProfileAssetPair };
+
+/**
+ * The signed-in user's active server profile + brand marks, or null when there is no
+ * session / the server has none stored yet / the request fails. Callers read null as
+ * "fall back to the device-local profile / defaults", mirroring the creds-guarded
+ * degradation of the draft/client reads. Session-checked first so an anonymous run
+ * makes zero API calls.
+ */
+export async function fetchProfile(): Promise<ServerProfile | null> {
+  if (!(await authed())) return null;
+  try {
+    const res = await fetch('/api/profile', { method: 'GET' });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { profile?: CompanyProfile | null; assets?: ProfileAssetPair | null };
+    if (!json.profile) return null;
+    return { profile: json.profile, assets: json.assets ?? { headerMark: null, footerMark: null } };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Upsert the signed-in user's active server profile + marks (best-effort PUT). Returns
+ * whether the request was accepted; a rejected/absent network call never throws into the
+ * Settings save path. Session-checked first like the rest of the library.
+ */
+export async function saveProfileServer(profile: CompanyProfile, assets: ProfileAssetPair): Promise<boolean> {
+  if (!(await authed())) return false;
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ profile, assets }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

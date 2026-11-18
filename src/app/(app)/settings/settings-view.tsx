@@ -2,11 +2,18 @@
  * app/(app)/settings/settings-view.tsx — company profile editor body (FR-5.1 / FR-5.2).
  *
  * Client body mounted by the sibling `page.tsx` server wrapper (which owns the session
- * guard). Persists to localStorage via the storage codec; "reset to factory defaults"
- * restores the seeded Encompass/Elaf profile. Brand marks are editable (#5): an uploaded
- * header/footer image is written to the separate `quotegen:assets:v1` slot (kept out of
- * the profile so it never rides the autosave), with size/format guards and a reset-to-
- * bundled-crops action. All feedback is inline — no native alert/confirm (AC-9).
+ * guard). The active profile + brand marks are SERVER-BACKED per-user rows (#38): on
+ * mount we adopt the server profile when one exists (refreshing the local cache), and if
+ * the server has none but this device has a saved profile we push it up once (seed).
+ * `localStorage` stays as an offline cache / first-paint fallback and the anonymous path
+ * (no session / creds unconfigured) is unchanged — a single device-local profile.
+ *
+ * Every save / brand-mark change writes the local slot AND issues a best-effort PUT to
+ * /api/profile, so the profile follows the account across devices. "Reset to factory
+ * defaults" restores the seeded Encompass/Elaf profile and syncs that too. Brand marks
+ * (#5) upload through the same guards but now persist server-side (in the profile row's
+ * own mark columns) rather than only in the ~5 MB localStorage slot. All feedback is
+ * inline — no native alert/confirm (AC-9).
  */
 
 'use client';
@@ -17,6 +24,7 @@ import {
   loadBrandAssets,
   loadProfile,
   MAX_ASSET_BYTES,
+  readProfile,
   resetAssets,
   resetProfile,
   validateImageFile,
@@ -25,6 +33,7 @@ import {
   type AssetKind,
   type BrandAssets,
 } from '@/lib/storage';
+import { fetchProfile, saveProfileServer } from '@/wizard/library';
 import { TextField, LinesTextArea, FloatingToast, FloatingToastStack } from '@/wizard/fields';
 import type { CompanyProfile } from '@/domain/types';
 
@@ -86,10 +95,13 @@ export function SettingsView() {
 
   const save = () => {
     writeProfile(browserKV(), profile);
+    void saveProfileServer(profile, { headerMark: assets.headerMark, footerMark: assets.footerMark });
     setStatus('Profile saved — new documents will use it.');
   };
   const reset = () => {
-    setProfile(resetProfile(browserKV()));
+    const fresh = resetProfile(browserKV());
+    setProfile(fresh);
+    void saveProfileServer(fresh, { headerMark: assets.headerMark, footerMark: assets.footerMark });
     setStatus('Restored the factory Encompass/Elaf profile.');
   };
 
@@ -109,6 +121,10 @@ export function SettingsView() {
         return;
       }
       setAssets((cur) => ({ ...cur, [kind]: dataUrl }));
+      void saveProfileServer(profile, {
+        headerMark: kind === 'headerMark' ? dataUrl : assets.headerMark,
+        footerMark: kind === 'footerMark' ? dataUrl : assets.footerMark,
+      });
       setStatus('Brand mark updated — new documents will use it.');
     } catch {
       setAssetError('That image could not be read.');
@@ -118,9 +134,38 @@ export function SettingsView() {
   const resetAssetUi = () => {
     resetAssets(browserKV());
     setAssets(loadBrandAssets(browserKV()));
+    void saveProfileServer(profile, { headerMark: null, footerMark: null });
     setAssetError('');
     setStatus('Restored the bundled brand marks.');
   };
+
+  // Server-backed sync (#38): adopt the active server profile when one exists (and refresh
+  // the local cache); otherwise, if this device has a saved profile the server doesn't, seed
+  // it up once. fetchProfile makes zero calls when signed out, so the anonymous path just
+  // keeps the localStorage-seeded state from the initial useState above.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const server = await fetchProfile();
+      if (!alive) return;
+      if (server) {
+        setProfile(server.profile);
+        writeProfile(browserKV(), server.profile);
+        writeAsset(browserKV(), 'headerMark', server.assets.headerMark);
+        writeAsset(browserKV(), 'footerMark', server.assets.footerMark);
+        setAssets((cur) => ({ ...cur, headerMark: server.assets.headerMark, footerMark: server.assets.footerMark }));
+        return;
+      }
+      const local = readProfile(browserKV());
+      if (local) {
+        const localAssets = loadBrandAssets(browserKV());
+        void saveProfileServer(local, { headerMark: localAssets.headerMark, footerMark: localAssets.footerMark });
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Auto-dismiss the status toast after 5 s.
   useEffect(() => {
@@ -196,8 +241,10 @@ export function SettingsView() {
           </button>
         </div>
         <p className="text-xs text-muted">
-          Replaced logos are stored on this device only (max {Math.round(MAX_ASSET_BYTES / 1024)} KB each) and are
-          kept out of the company profile. The header/footer colour bands stay bundled.
+          Replaced logos are saved to your account and follow you across devices while you are
+          signed in (max {Math.round(MAX_ASSET_BYTES / 1024)} KB each); offline they stay on this
+          device. They are kept separate from the profile fields. The header/footer colour bands
+          stay bundled.
         </p>
         <MarkUpload
           label="Header logo"

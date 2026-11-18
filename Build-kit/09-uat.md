@@ -319,7 +319,31 @@ three password entries; no native dialogs, deterministic core untouched.
 - ☐ jsdom coverage (`src/wizard/fields.test.tsx`): masked-by-default, type flip, `aria-pressed`,
   value survival, per-field independence, and the sign-up page wiring `PasswordField`. `[AC-7]`
 
-## 17. Sign-off
+## 17. Server-side per-user profile + brand marks `[issue #38 · 01 FR-5/FR-6, AC-6/9/24/28]`
+
+The active company profile and its brand marks move from device-local `localStorage` to
+per-user server rows; `localStorage` becomes an offline cache / first-paint fallback.
+
+- ☐ Cross-device: configure a profile + upload a logo on device A while signed in, then sign
+  in on device B — the profile fields and the replaced brand mark are present without re-entering
+  them (Settings and the wizard both adopt the server profile on load). `[FR-5/FR-6]`
+- ☐ Isolation: two different accounts on the same browser no longer share profile/brand state;
+  each sees only its own server profile. `[AC-24]`
+- ☐ Seed-once back-compat: on first authenticated load with no server profile but a saved local
+  one, the local profile is pushed up once; a server value is never silently overwritten. `[EC-14]`
+- ☐ Anonymous path unchanged: signed out (or pre-creds), Settings/wizard fall back to the single
+  device-local profile and make **zero** `/api/profile` calls (session-checked seam). `[AC-9]`
+- ☐ API contract: `/api/profile` returns 401 signed-out, degrades to an empty 200 when creds are
+  absent, Zod-rejects a bad payload (400), and rejects an over-cap/non-image mark (400) via the
+  shared `cleanAsset` guard; every query is `userId`-scoped. `[AC-24]`
+- ☐ Determinism preserved: exports still snapshot the full profile into `documents.payload`, so
+  changing the active profile never mutates past artifacts; re-render layers the account's marks
+  over the frozen snapshot profile. `[AC-6/EC-14]`
+- ☐ Gates: `eval:pdfs` 26/26 and `eval:golden` 5 pages @ 0 px (no `src/pdf` change); the AC-24
+  boundary check stays green (server code confined to `api`/`db`, core still imports no server);
+  no `alert()`/`confirm()`. `[AC-24/28/9]`
+
+## 18. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -339,6 +363,7 @@ three password entries; no native dialogs, deterministic core untouched.
 | 14 Brand asset management | | |
 | 15 PDF header fidelity (title + entity rule) | | |
 | 16 Show-password toggle | | |
+| 17 Server-side profile + brand marks | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

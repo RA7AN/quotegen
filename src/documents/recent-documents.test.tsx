@@ -19,6 +19,9 @@ const { renderToBlob, rehydrateById } = vi.hoisted(() => ({
 vi.mock('@/pdf/theme', () => ({ registerFonts: vi.fn() }));
 vi.mock('@/pdf/index', () => ({ renderToBlob }));
 vi.mock('./rerender', () => ({ rehydrateById }));
+// #38: the component fetches the account's server marks on mount; stub it to "anonymous /
+// none" so the DOM test drives only the document list + re-render paths via its fetch stub.
+vi.mock('@/wizard/library', () => ({ fetchProfile: vi.fn(async () => null) }));
 
 import { RecentDocuments } from './recent-documents';
 
@@ -87,7 +90,8 @@ describe('RecentDocuments re-render flows', () => {
     render(<RecentDocuments />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Download' }));
-    await waitFor(() => expect(rehydrateById).toHaveBeenCalledWith('D1'));
+    // #38: re-render now takes (id, fetch, server-marks); anonymous stub → null overrides.
+    await waitFor(() => expect(rehydrateById).toHaveBeenCalledWith('D1', expect.anything(), null));
     expect(renderToBlob).toHaveBeenCalled();
     expect(URL.createObjectURL).toHaveBeenCalled();
   });

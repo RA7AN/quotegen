@@ -10,12 +10,13 @@
  */
 import { makeInput } from '@/pdf/index';
 import type { PdfInput } from '@/pdf/input';
-import { parseStoredPayload, assetsWithOverrides } from '@/domain/rehydrate';
+import { parseStoredPayload, assetsWithOverrides, type BrandAssetOverrides } from '@/domain/rehydrate';
 import { browserKV, loadBrandAssets } from '@/lib/storage';
 
 export async function rehydrateById(
   id: string,
   fetcher: typeof fetch = fetch,
+  overrides?: BrandAssetOverrides | null,
 ): Promise<PdfInput | null> {
   const res = await fetcher(`/api/documents/${id}`);
   if (!res.ok) return null;
@@ -29,8 +30,11 @@ export async function rehydrateById(
 
   const parsed = parseStoredPayload((body as { payload?: unknown } | null)?.payload);
   if (!parsed) return null;
-  // #5: apply this device's uploaded brand overrides so a re-render matches what the
-  // wizard shows. In Node (no window) the reader is a no-op, so the stored profile's
-  // bundled crops win — re-render stays deterministic there.
-  return makeInput(parsed.doc, parsed.profile, assetsWithOverrides(parsed.profile, loadBrandAssets(browserKV())));
+  // #5/#38: brand marks are an overlay applied on top of the SNAPSHOT profile (the profile
+  // itself is frozen into the row, so past artifacts stay put — AC-6/EC-14). Callers pass
+  // the account's server-sourced marks; when absent (anonymous / Node, no window) we fall
+  // back to the device-local slot, which is empty there, so the stored profile's bundled
+  // crops win and re-render stays deterministic.
+  const resolved = overrides ?? loadBrandAssets(browserKV());
+  return makeInput(parsed.doc, parsed.profile, assetsWithOverrides(parsed.profile, resolved));
 }

@@ -58,6 +58,8 @@ import {
   removeSignoff,
   fetchDraft,
   persistDraft,
+  fetchProfile,
+  type ProfileAssetPair,
   type StoredClient,
   type StoredSignoff,
 } from './library';
@@ -89,6 +91,9 @@ export function Wizard() {
   const [savedClients, setSavedClients] = useState<StoredClient[]>([]);
   const [savedSignoffs, setSavedSignoffs] = useState<StoredSignoff[]>([]);
   const [reuseNotice, setReuseNotice] = useState('');
+  // #38: brand-mark overrides sourced from the server profile (null = not yet fetched /
+  // anonymous, so the resolver falls back to the device-local assets slot).
+  const [serverAssets, setServerAssets] = useState<ProfileAssetPair | null>(null);
   // Multi-drafts: identity of the SERVER draft this session loads/created (null =
   // not saved yet). "Save draft" creates on first click, refreshes in place after.
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -123,9 +128,17 @@ export function Wizard() {
   // Load the user's saved client & sign-off libraries once on mount (#11 slices 3-4).
   // Best-effort and session-checked inside each fetch, so anonymous/unconfigured runs skip
   // the requests and leave the pickers empty. Runs client-only (useEffect), never prerender.
+  // #38: also adopt the server-backed active profile + brand marks when present — the
+  // profile becomes the render source of truth for the session; anonymous runs keep the
+  // device-local profile loaded above (fetchProfile resolves to null, so this is a no-op).
   useEffect(() => {
     void fetchClients().then(setSavedClients);
     void fetchSignoffs().then(setSavedSignoffs);
+    void fetchProfile().then((sp) => {
+      if (!sp) return;
+      setProfile(sp.profile);
+      setServerAssets(sp.assets);
+    });
     setNativeShare(canSharePdf());
   }, []);
 
@@ -185,10 +198,12 @@ export function Wizard() {
   }, [state, resume, autosave]);
 
   // #5: resolve brand marks through the shared resolver so a Settings-uploaded override
-  // (in the assets:v1 slot) replaces the bundled crop without touching profile/draft keys.
+  // replaces the bundled crop without touching profile/draft keys. #38: prefer the
+  // server-sourced overrides once fetched; before that (anonymous / not yet loaded) fall
+  // back to the device-local assets slot so the offline/anonymous path is unchanged.
   const assets: PdfAssets = useMemo(
-    () => assetsWithOverrides(profile, loadBrandAssets(browserKV())),
-    [profile],
+    () => assetsWithOverrides(profile, serverAssets ?? loadBrandAssets(browserKV())),
+    [profile, serverAssets],
   );
   // #6: blank proforma bank fields render as omitted ACCOUNT DETAILS rows —
   // surface them as a Step-3 advisory (proforma template only, never blocking).
