@@ -161,6 +161,12 @@ export const drafts = pgTable(
  * per-quote picker): `name` labels each row and `isDefault` marks the active one. This
  * issue ships the single-active-profile UX — the API reads/updates the `isDefault` row —
  * so there is deliberately NO unique constraint on userId (that would block the library).
+ *
+ * `setupComplete` (#37) is the cross-device first-run-onboarding marker: false for a
+ * brand-new account (or a profile auto-seeded before the user ever ran setup), flipped true
+ * when the onboarding wizard finishes or is skipped. The (app) server layout reads it to
+ * gate entry to the document wizard until setup is done, so it lives here on the account's
+ * server row rather than in per-browser localStorage.
  */
 export const profiles = pgTable(
   'profiles',
@@ -174,6 +180,7 @@ export const profiles = pgTable(
     payload: jsonb('payload').notNull(), // CompanyProfile (validated by CompanyProfileSchema)
     headerMark: text('header_mark'), // base64 data-URL override or null (bundled crop)
     footerMark: text('footer_mark'),
+    setupComplete: boolean('setup_complete').notNull().default(false), // #37 first-run onboarding marker
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

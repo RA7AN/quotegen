@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/auth/session';
+import { isSetupComplete } from '@/db/profiles';
 import { AccountMenu } from './account-menu';
 
 const NAV: ReadonlyArray<{ href: string; label: string }> = [
@@ -33,6 +34,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const h = await headers();
   const user = await getSessionUser(h);
   if (!user) redirect('/sign-in');
+
+  // First-run gate (#37): a signed-in account that has never finished business setup is
+  // bounced to /onboarding (its own route group, so this layout never needs to path-exclude
+  // a child and loop). `isSetupComplete` degrades open when the DB is unconfigured/errors,
+  // so preview and pre-migration environments are never locked out.
+  if (!(await isSetupComplete(user.id))) redirect('/onboarding');
 
   return (
     <>

@@ -343,7 +343,37 @@ per-user server rows; `localStorage` becomes an offline cache / first-paint fall
   boundary check stays green (server code confined to `api`/`db`, core still imports no server);
   no `alert()`/`confirm()`. `[AC-24/28/9]`
 
-## 18. Sign-off
+## 18. First-run onboarding `[issue #37 · 01 FR-5.4, AC-6/9/24/28 · HP-5, EC-15]`
+
+A signed-in account that has not configured its company profile is guided through a one-time
+setup wizard; a server-side `setupComplete` marker gates the app shell until it is set.
+
+- ☐ Gate redirects: sign up a fresh account and open `/home` (or any app route) → bounced to
+  `/onboarding`; the wizard is its own route group, so there is no redirect loop. `[FR-5.4]`
+- ☐ Walkthrough: step through welcome → identity → contact & banking → signatory & brand marks
+  → review → **Finish setup**; the edits are persisted, and finishing routes into the app with
+  the profile applied. Reusing the shared Settings sections means the labels/fields match
+  exactly. `[FR-5.1/5.4]`
+- ☐ Marker releases the gate: after Finish, reload/navigate within the app → no more redirect to
+  `/onboarding` (`setupComplete` is now true on the account's server row). `[AC-24]`
+- ☐ Cross-device: the same account on another device lands straight in the app (the marker and
+  profile follow the account, not the browser). `[FR-5.4]`
+- ☐ Skip path: a fresh account choosing **Skip for now** accepts the factory defaults, sets the
+  marker, and is let through (not a dead end). `[HP-5]`
+- ☐ Run setup again: Settings → **Run setup again** re-enters the wizard pre-filled from the saved
+  profile; finishing updates it without re-gating. `[FR-5.4]`
+- ☐ Save keeps the marker: an ordinary Settings save (no `setupComplete` in the payload) never
+  resets a completed setup back to false. `[AC-6]`
+- ☐ Never hard-locks (EC-15): with the DB unconfigured or the marker read erroring (preview /
+  pre-migration), the gate degrades **open** so the app stays reachable; the wizard still works
+  device-locally. `[EC-15, AC-9]`
+- ☐ API contract: `GET /api/profile` reports `setupComplete` (false when no row); `PUT` writes it
+  only when a boolean is supplied; still 401 signed-out, empty 200 pre-creds, Zod-guarded. `[AC-24]`
+- ☐ Gates: migration 0007 adds only `setup_complete` (re-`generate` is a no-op); `eval:pdfs` 26/26
+  and `eval:golden` 5 pages @ 0 px (no `src/pdf` change); no `alert()`/`confirm()`; core stays
+  server-free. `[AC-24/28/9]`
+
+## 19. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -364,6 +394,7 @@ per-user server rows; `localStorage` becomes an offline cache / first-paint fall
 | 15 PDF header fidelity (title + entity rule) | | |
 | 16 Show-password toggle | | |
 | 17 Server-side profile + brand marks | | |
+| 18 First-run onboarding | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

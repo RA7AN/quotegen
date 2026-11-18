@@ -183,7 +183,7 @@ export async function removeDraft(id: string): Promise<boolean> {
 /** The two brand-mark overrides that ride alongside the profile (null = bundled crop). */
 export type ProfileAssetPair = { headerMark: string | null; footerMark: string | null };
 /** A stored server profile: the validated CompanyProfile plus its mark overrides. */
-export type ServerProfile = { profile: CompanyProfile; assets: ProfileAssetPair };
+export type ServerProfile = { profile: CompanyProfile; assets: ProfileAssetPair; setupComplete: boolean };
 
 /**
  * The signed-in user's active server profile + brand marks, or null when there is no
@@ -197,9 +197,17 @@ export async function fetchProfile(): Promise<ServerProfile | null> {
   try {
     const res = await fetch('/api/profile', { method: 'GET' });
     if (!res.ok) return null;
-    const json = (await res.json()) as { profile?: CompanyProfile | null; assets?: ProfileAssetPair | null };
+    const json = (await res.json()) as {
+      profile?: CompanyProfile | null;
+      assets?: ProfileAssetPair | null;
+      setupComplete?: unknown;
+    };
     if (!json.profile) return null;
-    return { profile: json.profile, assets: json.assets ?? { headerMark: null, footerMark: null } };
+    return {
+      profile: json.profile,
+      assets: json.assets ?? { headerMark: null, footerMark: null },
+      setupComplete: json.setupComplete === true,
+    };
   } catch {
     return null;
   }
@@ -208,15 +216,24 @@ export async function fetchProfile(): Promise<ServerProfile | null> {
 /**
  * Upsert the signed-in user's active server profile + marks (best-effort PUT). Returns
  * whether the request was accepted; a rejected/absent network call never throws into the
- * Settings save path. Session-checked first like the rest of the library.
+ * Settings save path. Session-checked first like the rest of the library. `completeSetup`
+ * (#37) sets the onboarding marker only when explicitly passed, so ordinary saves leave it.
  */
-export async function saveProfileServer(profile: CompanyProfile, assets: ProfileAssetPair): Promise<boolean> {
+export async function saveProfileServer(
+  profile: CompanyProfile,
+  assets: ProfileAssetPair,
+  opts?: { completeSetup?: boolean },
+): Promise<boolean> {
   if (!(await authed())) return false;
   try {
     const res = await fetch('/api/profile', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ profile, assets }),
+      body: JSON.stringify(
+        opts?.completeSetup !== undefined
+          ? { profile, assets, setupComplete: opts.completeSetup }
+          : { profile, assets },
+      ),
     });
     return res.ok;
   } catch {
