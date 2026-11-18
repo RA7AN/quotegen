@@ -53,16 +53,17 @@ describe('GET /api/profile (#38)', () => {
     getActiveProfile.mockResolvedValue(null);
     const res = await GET(req());
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ profile: null, assets: null });
+    await expect(res.json()).resolves.toEqual({ profile: null, assets: null, setupComplete: false });
     expect(getActiveProfile).toHaveBeenCalledWith('u1');
   });
 
-  it('returns the stored profile + mark overrides', async () => {
+  it('returns the stored profile + mark overrides + setup marker', async () => {
     requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
     getActiveProfile.mockResolvedValue({
       profile,
       headerMark: 'data:image/png;base64,AA==',
       footerMark: null,
+      setupComplete: true,
       updatedAt: '2026-11-04T10:00:00.000Z',
     });
     const res = await GET(req());
@@ -70,6 +71,7 @@ describe('GET /api/profile (#38)', () => {
     await expect(res.json()).resolves.toEqual({
       profile,
       assets: { headerMark: 'data:image/png;base64,AA==', footerMark: null },
+      setupComplete: true,
     });
   });
 });
@@ -123,5 +125,21 @@ describe('PUT /api/profile (#38)', () => {
     const res = await PUT(put({ profile }));
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: false, id: null });
+  });
+
+  it('forwards a real boolean setupComplete so onboarding can close the gate (#37)', async () => {
+    requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
+    upsertActiveProfile.mockResolvedValue('p9');
+    const res = await PUT(put({ profile, setupComplete: true }));
+    expect(res.status).toBe(200);
+    expect(upsertActiveProfile).toHaveBeenCalledWith(expect.objectContaining({ setupComplete: true }));
+  });
+
+  it('omits setupComplete when the body has none, so a Settings save never resets it', async () => {
+    requireSessionUser.mockResolvedValue({ id: 'u1', email: 'a@b.c' });
+    upsertActiveProfile.mockResolvedValue('p9');
+    await PUT(put({ profile }));
+    const arg = upsertActiveProfile.mock.calls[0]![0] as { setupComplete?: boolean };
+    expect(arg.setupComplete).toBeUndefined();
   });
 });

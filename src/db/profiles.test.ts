@@ -18,7 +18,7 @@ const returning = vi.fn(resolveRows);
 const values = vi.fn(() => ({ returning }));
 const insert = vi.fn(() => ({ values }));
 const whereUpdate = vi.fn(resolveRows);
-const setUpdate = vi.fn(() => ({ where: whereUpdate }));
+const setUpdate = vi.fn((_set: unknown) => ({ where: whereUpdate }));
 const update = vi.fn(() => ({ set: setUpdate }));
 const getDb = vi.fn(() => ({ insert, select, update }));
 let dbConfigured = false;
@@ -28,7 +28,7 @@ vi.mock('@/db/client', async (importOriginal) => {
   return { ...actual, getDb, isDbConfigured: () => dbConfigured };
 });
 
-const { getActiveProfile, upsertActiveProfile } = await import('./profiles');
+const { getActiveProfile, upsertActiveProfile, isSetupComplete } = await import('./profiles');
 
 const profile = { ...DEFAULT_COMPANY_PROFILE, legalNameEn: 'ACME Trading Co.' };
 
@@ -65,14 +65,15 @@ describe('getActiveProfile (#38)', () => {
     expect(await getActiveProfile('u1')).toBeNull();
   });
 
-  it('maps the active row (marks + ISO updatedAt) when the payload validates', async () => {
+  it('maps the active row (marks + marker + ISO updatedAt) when the payload validates', async () => {
     dbConfigured = true;
     const d = new Date('2026-11-04T10:00:00.000Z');
-    rows = [{ payload: profile, headerMark: 'data:image/png;base64,AA==', footerMark: null, updatedAt: d }];
+    rows = [{ payload: profile, headerMark: 'data:image/png;base64,AA==', footerMark: null, setupComplete: true, updatedAt: d }];
     expect(await getActiveProfile('u1')).toEqual({
       profile,
       headerMark: 'data:image/png;base64,AA==',
       footerMark: null,
+      setupComplete: true,
       updatedAt: d.toISOString(),
     });
     expect(limit).toHaveBeenCalledWith(1);
@@ -132,5 +133,55 @@ describe('upsertActiveProfile (#38)', () => {
       throw new Error('db down');
     });
     await expect(upsertActiveProfile({ userId: 'u1', profile, headerMark: null, footerMark: null })).resolves.toBeNull();
+  });
+
+  it('writes setupComplete only when provided (insert + update), so saves keep the marker', async () => {
+    dbConfigured = true;
+    rows = []; // no existing → insert path
+    returning.mockResolvedValue([{ id: 'p3' }]);
+    await upsertActiveProfile({ userId: 'u1', profile, headerMark: null, footerMark: null, setupComplete: true });
+    expect(values).toHaveBeenCalledWith(expect.objectContaining({ isDefault: true, setupComplete: true }));
+
+    rows = [{ id: 'p1' }]; // existing → update path, marker forwarded
+    await upsertActiveProfile({ userId: 'u1', profile, headerMark: null, footerMark: null, setupComplete: false });
+    expect(setUpdate).toHaveBeenCalledWith(expect.objectContaining({ setupComplete: false }));
+
+    // A plain save (no setupComplete) must NOT include the key in the update set.
+    setUpdate.mockClear();
+    await upsertActiveProfile({ userId: 'u1', profile, headerMark: null, footerMark: null });
+    expect(setUpdate.mock.calls[0]![0]).not.toHaveProperty('setupComplete');
+  });
+});
+
+describe('isSetupComplete (#37 onboarding gate)', () => {
+  it('degrades open (true) when the DB is unconfigured', async () => {
+    expect(await isSetupComplete('u1')).toBe(true);
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('true when the active row has setup_complete set', async () => {
+    dbConfigured = true;
+    rows = [{ setupComplete: true }];
+    expect(await isSetupComplete('u1')).toBe(true);
+  });
+
+  it('false when the active row exists but setup is not complete', async () => {
+    dbConfigured = true;
+    rows = [{ setupComplete: false }];
+    expect(await isSetupComplete('u1')).toBe(false);
+  });
+
+  it('false when the account has no profile row yet (brand-new → prompt onboarding)', async () => {
+    dbConfigured = true;
+    rows = [];
+    expect(await isSetupComplete('u1')).toBe(false);
+  });
+
+  it('degrades open (true) rather than throwing on a DB error', async () => {
+    dbConfigured = true;
+    from.mockImplementation(() => {
+      throw new Error('db down');
+    });
+    await expect(isSetupComplete('u1')).resolves.toBe(true);
   });
 });

@@ -87,6 +87,13 @@ IDs are stable and referenced by the acceptance criteria (05) and eval plan (07)
   the seeded Encompass/Elaf profile.
 - FR-5.3 Brand band colours and logo marks are sourced per
   [03-template-fidelity.md](./03-template-fidelity.md) and bundled as static assets.
+- FR-5.4 First-run onboarding (#37): a signed-in account that has not yet configured its
+  company profile is guided through a one-time, step-by-step setup wizard (`/onboarding`) that
+  reuses the same profile fields and brand-mark guards as Settings. It finishes (or is skipped,
+  accepting the factory defaults) with a single save that persists the profile and records a
+  server-side `setupComplete` marker; the authenticated app shell gates entry to the document
+  wizard until that marker is set, so the setup follows the account across devices. Settings
+  exposes a "Run setup again" entry to re-enter the wizard.
 
 ### FR-6 Drafts & saved quotes
 - FR-6.1 Autosave the in-progress wizard to `localStorage` on every change (debounced);

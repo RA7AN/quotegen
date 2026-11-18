@@ -47,6 +47,23 @@ manually. Each ends in a downloaded PDF.
 
 ---
 
+## HP-5 — First-run onboarding (#37)
+
+1. Sign up a brand-new account. The sign-up destination (`/home`) is behind the authenticated
+   app shell; because the account has no `setupComplete` marker, it redirects to `/onboarding`.
+2. Step through: welcome → identity (set legal name) → contact & banking → signatory & brand
+   marks (upload a header logo) → review → **Finish setup**.
+   **Expected**: one save persists the profile + brand mark server-side, sets `setupComplete`,
+   routes into the app, and subsequent `/home` visits no longer redirect.
+3. On a second device, sign in as the same account → lands straight in the app with the
+   profile + logo already applied (the marker and profile follow the account).
+4. **Skip path**: a fresh account that chooses "Skip for now" accepts the factory defaults and
+   is likewise let through (marker set).
+5. Settings shows **Run setup again**, which re-enters the wizard pre-filled from the saved
+   profile; finishing updates it without re-gating.
+
+---
+
 ## Edge cases (must not break determinism or layout)
 
 - **EC-1 Fractional qty**: qty `0.5`, unit `199.99` → line price `100.00` (round half-up),
@@ -74,3 +91,7 @@ manually. Each ends in a downloaded PDF.
   (it is fixed-pt, not CSS-px).
 - **EC-14 Repeated downloads**: two consecutive downloads of an unchanged doc are identical
   (byte-stable text layer) and both use the same filename.
+- **EC-15 Onboarding gate never hard-locks**: when the database is unconfigured or the marker
+  read errors (preview / pre-migration), `setupComplete` degrades **open** so the app shell
+  stays reachable instead of bouncing to `/onboarding` forever; the wizard still works
+  device-locally (finishing writes the profile and syncs best-effort when a session exists).

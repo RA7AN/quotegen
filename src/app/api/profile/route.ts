@@ -29,10 +29,11 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   const stored = await getActiveProfile(user.id);
-  if (!stored) return Response.json({ profile: null, assets: null });
+  if (!stored) return Response.json({ profile: null, assets: null, setupComplete: false });
   return Response.json({
     profile: stored.profile,
     assets: { headerMark: stored.headerMark, footerMark: stored.footerMark },
+    setupComplete: stored.setupComplete,
   });
 }
 
@@ -71,11 +72,15 @@ export async function PUT(req: Request): Promise<Response> {
     return Response.json({ error: 'Invalid brand mark: expected an image data URL' }, { status: 400 });
   }
 
+  // Optional first-run-onboarding marker (#37): only forwarded when the client sends a
+  // real boolean, so a plain Settings save never resets an already-completed setup flag.
+  const setupComplete = typeof envelope.setupComplete === 'boolean' ? envelope.setupComplete : undefined;
   const id = await upsertActiveProfile({
     userId: user.id,
     profile: parsed.data as CompanyProfile,
     headerMark,
     footerMark,
+    setupComplete,
   });
   return Response.json({ ok: id !== null, id });
 }
