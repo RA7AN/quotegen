@@ -73,4 +73,23 @@ describe('#5 assetsWithOverrides', () => {
   it('assetsForProfile is the no-override path', () => {
     expect(assetsForProfile(profile)).toEqual(assetsWithOverrides(profile));
   });
+
+  // #36: the banner only switches to the logo-neutral band for an UPLOADED (data-URL)
+  // mark; a bundled crop path stays inert so the default output is byte-identical.
+  it('exposes an uploaded data-URL mark as the banner override', () => {
+    const assets = assetsWithOverrides(profile, { headerMark: 'data:image/png;base64,AAA', footerMark: 'data:image/png;base64,BBB' });
+    expect(assets.headerMarkOverride).toBe('data:image/png;base64,AAA');
+    expect(assets.footerMarkOverride).toBe('data:image/png;base64,BBB');
+  });
+
+  it('resolves overrides to null when no mark is uploaded (bundled crops, empty slots)', () => {
+    expect(assetsWithOverrides(profile).headerMarkOverride).toBeNull();
+    expect(assetsWithOverrides(profile).footerMarkOverride).toBeNull();
+    expect(assetsWithOverrides(profile, { headerMark: null, footerMark: '' }).headerMarkOverride).toBeNull();
+  });
+
+  it('ships the logo-neutral header band path alongside the baked one', () => {
+    expect(STATIC_BRAND_ASSETS.headerBandNeutral).toBe('/brand/header-band-blank.png');
+    expect(assetsWithOverrides(profile, { headerMark: 'data:image/png;base64,AAA' }).headerBandNeutral).toBe('/brand/header-band-blank.png');
+  });
 });

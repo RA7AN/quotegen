@@ -165,3 +165,17 @@ under 07 §5.
   the Text border and draw an explicit 1pt horizontal `View` (`styles.entityRule`,
   `alignSelf: 'stretch'`) under the name. Shared `EntityBlock`, so it applies to **both** the
   quotation and proforma templates.
+- **A-5 — brand-mark overlay in the banner (#36).** §2 chose baked raster bands over the vector
+  rebuild + separate mark images; that made an uploaded logo inert (Settings preview only). #36
+  adds an overlay path WITHOUT re-baselining: the default still renders the baked crops unchanged
+  (goldens stay 0 px), and only when an **uploaded** (data-URL) mark resolves — through
+  `PdfAssets.headerMarkOverride` / `footerMarkOverride`, never read from storage inside `src/pdf`
+  (AC-24/28) — does the header swap to a logo-neutral crop (`public/brand/header-band-blank.png`,
+  pixel-identical artwork with the logo region cleared to the band's black) with the mark
+  placed in the reserved slot (`LOGO_SLOTS`, aligned to where the baked logo sits: header
+  x 519 / y 31, 63pt wide). react-pdf stretches an `<Image>` given both dimensions and does
+  NOT honour `fit`, so each mark is placed with ONE fixed dimension (header by width, footer
+  by height) and scales proportionally — contain, never distorted. The footer strips carry no
+  baked logo, so the footer mark sits just above the strip, right-aligned to the header mark's
+  right edge. No golden change: the amendment only defines the override branch; the no-mark
+  path is byte-identical to §2.

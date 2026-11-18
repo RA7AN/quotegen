@@ -104,6 +104,15 @@ IDs are stable and referenced by the acceptance criteria (05) and eval plan (07)
   snapshots the full resolved profile, so previously generated documents stay deterministic. The
   active/default profile remains the singular `/api/profile` read used by onboarding; the library
   is served by plural `/api/profiles` endpoints over the same `profiles` table (no migration).
+- FR-5.6 Uploaded brand marks render in the PDF banner (#36): while a mark is uploaded in Settings
+  it is stored and previewed, but the banner keeps rendering the baked-in Encompass crops, so the
+  output never changes. With this feature, when an **uploaded** (data-URL) mark resolves for a
+  position, the header renders a logo-neutral band crop (identical artwork, logo region cleared) and
+  the mark is placed in its reserved slot; the footer mark sits just above the info strip. The
+  override signal arrives fully resolved through `PdfInput.assets` (`src/pdf` never reads storage,
+  AC-24/28), and the placed mark keeps its intrinsic aspect (contain, never stretched). With no
+  upload the baked banner renders unchanged, so the HP goldens stay 0 px (AC-6/EC-14); resetting a
+  mark reverts the PDF to the baked banner.
 
 ### FR-6 Drafts & saved quotes
 - FR-6.1 Autosave the in-progress wizard to `localStorage` on every change (debounced);

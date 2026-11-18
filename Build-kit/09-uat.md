@@ -403,7 +403,34 @@ without changing the account default. Built on the existing `profiles` table (no
   blank name), `force-dynamic`; `parseProfileBody` reuses the shared `CompanyProfileSchema` +
   `cleanAsset` guards. `[AC-24]`
 
-## 20. Sign-off
+## 20. Uploaded brand mark in the header/footer banner `[issue #36 · 01 FR-5.3/FR-5.6, AC-6/9/24/28 · HP-7, EC-18 · 03 §2/A-5]`
+
+An uploaded logo now renders in the PDF banner (it was stored + previewed but inert after #5),
+without changing any other banner chrome; the no-upload path stays byte-identical.
+
+- ☐ Default unchanged: with **no** uploaded mark (factory profile / reset), the header and footer
+  render the baked-in Encompass crops exactly as before; `eval:golden` stays **5 pages @ 0 px** (no
+  re-baseline) and `eval:pdfs` 26/26. `[AC-6/EC-14, EC-18]`
+- ☐ Header override renders: upload a transparent PNG as **Header logo** → Download a quotation and
+  a proforma: the uploaded logo appears in the slot where the baked mark sat; band colours,
+  chevrons, name, tagline and gold rule are pixel-stable versus the default (only the logo differs).
+  `[FR-5.6, HP-7]`
+- ☐ Footer override renders: upload a **Footer logo** → the mark sits just above the info strip,
+  right-aligned to the header mark's edge; the strip artwork (WWW · VAT · AC · CR) is untouched.
+  `[FR-5.6, HP-7]`
+- ☐ Contained, not stretched: a logo of a non-matching aspect scales proportionally inside its
+  reserved slot (never squished) — react-pdf places it with one fixed dimension. `[03 A-5]`
+- ☐ Reset reverts: **Reset to bundled crops** on either slot returns the PDF to the baked banner,
+  byte-stable with pre-upload renders. `[HP-7]`
+- ☐ Purity / determinism (AC-24/28): `src/pdf` reads no storage — the override signal and the
+  logo-neutral band (`/brand/header-band-blank.png`) arrive fully resolved on `PdfAssets`; only an
+  uploaded data-URL is an override (bundled `/brand/*-mark.png` crop paths stay inert); no
+  `Date.now`/`Math.random`; no native dialog (AC-9). `[AC-24/28/9]`
+- ☐ Tests: render-path coverage for the override branch (extra embedded images, text layer
+  identical) and the resolver (`*MarkOverride` set for data-URLs, null for bundled/empty) stay green.
+  `[AC-6]`
+
+## 21. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -426,6 +453,7 @@ without changing the account default. Built on the existing `profiles` table (no
 | 17 Server-side profile + brand marks | | |
 | 18 First-run onboarding | | |
 | 19 Profile library + per-quote picker | | |
+| 20 Brand mark in header/footer banner | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

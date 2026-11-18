@@ -81,6 +81,21 @@ manually. Each ends in a downloaded PDF.
 
 ---
 
+## HP-7 — Uploaded brand mark renders in the banner (#36)
+
+1. In Settings, upload a transparent PNG under **Header logo** and (optionally) **Footer logo**;
+   the previews update and the marks persist to the account (`/api/profile` marks).
+2. **Download** a quotation (and a proforma): the header shows the *uploaded* logo in the exact
+   slot where the baked Encompass mark sits — same band colours, chevrons, name, tagline, gold
+   rule and geometry; only the logo artwork differs. The footer logo sits just above the info
+   strip, right-aligned, strip artwork untouched.
+3. A logo of any aspect is placed **contained** (scaled proportionally, never squished) inside
+   its reserved slot.
+4. **Reset to bundled crops** on either slot: the banner reverts to the baked-in artwork and the
+   output is byte-stable with pre-upload renders (no re-baseline; goldens stay 0 px).
+
+---
+
 ## Edge cases (must not break determinism or layout)
 
 - **EC-1 Fractional qty**: qty `0.5`, unit `199.99` → line price `100.00` (round half-up),
@@ -120,3 +135,9 @@ manually. Each ends in a downloaded PDF.
   signed out on another device), the wizard self-clears the pick and falls back to the account
   default rather than rendering with a missing profile; the export was already deterministic because
   it snapshots the full profile, never the id.
+- **EC-18 Bundled crop paths are not overrides (#36)**: only an uploaded data-URL mark flips the
+  banner to the logo-neutral band. A profile whose `logos` hold the `/brand/*-mark.png` bundled
+  paths (factory defaults, seeded profiles, Node re-render with no device overrides) renders the
+  baked banner byte-identically — the marks stay inert, so goldens and archived artifacts never
+  shift. A malformed/oversized upload is rejected by the #5 storage guards before it can reach
+  the render path.
