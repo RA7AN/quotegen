@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/auth/client';
 import { authErrorMessage, validateEmail, validatePassword } from '@/auth/forms';
-import { FieldShell, inputClass } from '@/wizard/fields';
+import { FieldShell, inputClass, PasswordField } from '@/wizard/fields';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -56,16 +56,14 @@ export default function SignInPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </FieldShell>
-        <FieldShell label="Password" error={errors.password}>
-          <input
-            className={inputClass}
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </FieldShell>
+        <PasswordField
+          label="Password"
+          error={errors.password}
+          name="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={setPassword}
+        />
         {errors.form && (
           <p role="alert" className="text-sm font-medium text-red-700">
             {errors.form}

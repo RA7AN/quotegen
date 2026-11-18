@@ -5,7 +5,7 @@
  * wrapped in a real <label htmlFor> for NFR-4 accessibility.
  */
 
-import { useId, useRef } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 /* ------------------------------------------------------------------ *
@@ -125,6 +125,86 @@ export function FieldShell({ label, required, error, hint, children }: { label: 
 export const inputClass =
   'w-full rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-sm ' +
   'focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold';
+
+/* ------------------------------------------------------------------ *
+ * PasswordField — labelled password input with an inline reveal toggle. *
+ *                                                                    *
+ * A real <button type="button"> sits at the trailing edge and flips the *
+ * input between type=password and type=text. It never touches value, *
+ * validation, or submission (issue #39, AC-9: no native dialogs). The *
+ * button lives inside FieldShell's <label>, so preventDefault() stops *
+ * label activation from stealing focus back to the input on toggle.   *
+ * ------------------------------------------------------------------ */
+
+function EyeIcon({ off }: { off?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+      <circle cx="12" cy="12" r="3" />
+      {off && <line x1="3" y1="3" x2="21" y2="21" />}
+    </svg>
+  );
+}
+
+export function PasswordField({
+  label,
+  required,
+  error,
+  hint,
+  name,
+  autoComplete = 'current-password',
+  value,
+  onChange,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  hint?: string;
+  name: string;
+  autoComplete?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <FieldShell label={label} required={required} error={error} hint={hint}>
+      <span className="relative block">
+        <input
+          className={inputClass + ' pr-9'}
+          type={revealed ? 'text' : 'password'}
+          name={name}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            setRevealed((r) => !r);
+          }}
+          aria-label={revealed ? 'Hide password' : 'Show password'}
+          aria-pressed={revealed}
+          title={revealed ? 'Hide password' : 'Show password'}
+          className="absolute inset-y-0 right-0 flex items-center px-2.5 text-neutral-500 hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-gold"
+        >
+          <EyeIcon off={revealed} />
+        </button>
+      </span>
+    </FieldShell>
+  );
+}
 
 /* ------------------------------------------------------------------ *
  * Inline-markup editing (bold / italic / underline).                 *
