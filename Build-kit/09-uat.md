@@ -304,7 +304,22 @@ Two header defects fixed in `src/pdf/primitives.tsx`; goldens re-baselined (amen
   goldens; `eval:pdfs` 26/26; AC-24/28/9 static gates stay green (core pure, no clock/random,
   no dialogs). `[07 §5]`
 
-## 16. Sign-off
+## 16. Show-password toggle on password fields `[issue #39 · NFR-4 accessibility, AC-9]`
+
+A reusable `PasswordField` (in `src/wizard/fields.tsx`) with an inline reveal toggle now backs all
+three password entries; no native dialogs, deterministic core untouched.
+
+- ☐ Sign-in, sign-up and reset-password each render a trailing eye button; clicking it flips the
+  input between masked and text, and the button's accessible name toggles “Show password” /
+  “Hide password” with `aria-pressed`. `[NFR-4]`
+- ☐ The typed value is preserved across a reveal, and toggling one field does not reveal another.
+  Submitting while revealed still sends the correct value. `[FR-9]`
+- ☐ No `alert()`/`confirm()` (AC-9 static gate green); `eval:pdfs` 26/26 and `eval:golden` 5 pages
+  @ 0 px (this change touches no `src/pdf` code). `[AC-24/28]`
+- ☐ jsdom coverage (`src/wizard/fields.test.tsx`): masked-by-default, type flip, `aria-pressed`,
+  value survival, per-field independence, and the sign-up page wiring `PasswordField`. `[AC-7]`
+
+## 17. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -323,6 +338,7 @@ Two header defects fixed in `src/pdf/primitives.tsx`; goldens re-baselined (amen
 | 13 jsdom component tests | | |
 | 14 Brand asset management | | |
 | 15 PDF header fidelity (title + entity rule) | | |
+| 16 Show-password toggle | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

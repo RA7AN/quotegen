@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { authClient } from '@/auth/client';
 import { authErrorMessage, extractResetToken, validatePassword } from '@/auth/forms';
-import { FieldShell, inputClass } from '@/wizard/fields';
+import { PasswordField } from '@/wizard/fields';
 
 function ResetForm() {
   const router = useRouter();
@@ -60,16 +60,15 @@ function ResetForm() {
 
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
-      <FieldShell label="New password" error={error} hint="At least 8 characters">
-        <input
-          className={inputClass}
-          type="password"
-          name="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </FieldShell>
+      <PasswordField
+        label="New password"
+        error={error}
+        hint="At least 8 characters"
+        name="password"
+        autoComplete="new-password"
+        value={password}
+        onChange={setPassword}
+      />
       <button
         type="submit"
         disabled={busy}
