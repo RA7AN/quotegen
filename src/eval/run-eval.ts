@@ -42,6 +42,7 @@ const assets: PdfAssets = {
   headerMark: path.join(repoRoot, 'public', 'brand', 'header-mark.png'),
   footerMark: path.join(repoRoot, 'public', 'brand', 'footer-mark.png'),
   headerBand: path.join(repoRoot, 'public', 'brand', 'header-band.jpg'),
+  headerBandNeutral: path.join(repoRoot, 'public', 'brand', 'header-band-blank.png'),
   footerStrip: path.join(repoRoot, 'public', 'brand', 'footer-strip.jpg'),
   footerStripProforma: path.join(repoRoot, 'public', 'brand', 'footer-strip-proforma.png'),
 };

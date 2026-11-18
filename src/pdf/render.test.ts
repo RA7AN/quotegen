@@ -17,6 +17,7 @@ const ASSETS = {
   headerMark: dataUri('public/brand/header-mark.png', 'image/png'),
   footerMark: dataUri('public/brand/footer-mark.png', 'image/png'),
   headerBand: dataUri('public/brand/header-band.jpg', 'image/jpeg'),
+  headerBandNeutral: dataUri('public/brand/header-band-blank.png', 'image/png'),
   footerStrip: dataUri('public/brand/footer-strip.jpg', 'image/jpeg'),
   footerStripProforma: dataUri('public/brand/footer-strip-proforma.png', 'image/png'),
 };
@@ -152,5 +153,41 @@ describe('PDF render — platform invariants', () => {
     expect(text).toContain('info@encompassgroupsa.com');
     expect(text).toContain('www.encompassgroupsa.com');
     expect(text).not.toContain('INFO@ENCOMPASSGROUPSA.COM'); // sign-off run is normalised
+  });
+});
+
+describe('PDF render — brand-mark override (#36)', () => {
+  // The uploaded (data-URL) mark switches the header to the logo-neutral band and places
+  // the mark in its reserved slot; with no override the baked banner stays untouched
+  // (goldens pin that at 0 px). Raw bytes are never compared across renders — the PDF
+  // trailer /ID is randomized per render — so the checks are structural.
+  const OVERRIDE_ASSETS = {
+    ...ASSETS,
+    headerMarkOverride: ASSETS.headerMark,
+    footerMarkOverride: ASSETS.footerMark,
+  };
+
+  async function renderRaw(assets: typeof ASSETS, over: Partial<QuoteDocument>) {
+    const buf = Buffer.from(await renderToBuffer(makeInput(doc(over), DEFAULT_COMPANY_PROFILE, assets)));
+    const pdfDoc = await getDocumentProxy(new Uint8Array(buf));
+    const { text } = await extractText(pdfDoc, { mergePages: true });
+    const images = (buf.toString('latin1').match(/\/Subtype\s\/Image/g) ?? []).length;
+    return { buf, images, text: text as string };
+  }
+
+  const probe = { lines: [line('1', 530000, 100)] };
+
+  it('default path keeps the two baked band crops and nothing else', async () => {
+    const { images } = await renderRaw(ASSETS, probe);
+    expect(images).toBe(2); // header band + quotation strip; bundled marks stay inert
+  });
+
+  it('override embeds the placed marks (neutral band + 2 marks) and leaves text identical', async () => {
+    const base = await renderRaw(ASSETS, probe);
+    const ovr = await renderRaw(OVERRIDE_ASSETS, probe);
+    expect(ovr.images).toBe(base.images + 3);
+    // only the banner artwork changes — the document content is untouched
+    expect(ovr.text).toBe(base.text);
+    expect(ovr.buf.length).toBeGreaterThan(base.buf.length);
   });
 });

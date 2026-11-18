@@ -18,9 +18,35 @@ export type PdfAssets = {
   headerMark: string;
   footerMark: string;
   headerBand: string;
+  /** #36 logo-free header band (same artwork, mark region cleared); caller-injected
+   * like every other band so Node can pass a file path / data URI. */
+  headerBandNeutral: string;
   footerStrip: string;
   footerStripProforma: string;
+  /** #36: uploaded (data-URL) marks ONLY — resolved by the caller, never read here.
+   * When set, the header band swaps to the logo-neutral crop and the mark is placed
+   * in its reserved slot; the footer strip keeps its artwork and takes the mark in
+   * the reserved slot above it. Null/absent = today's baked banner, byte-identical. */
+  headerMarkOverride?: string | null;
+  footerMarkOverride?: string | null;
 };
+
+/**
+ * Reserved logo slots in band-local point coordinates (#36), aligned to where the
+ * baked Encompass mark sits today so an uploaded logo looks native and nothing else
+ * in the banner moves. Header: the cleared region of header-band-blank.png (the crop
+ * is 1400×286px over 612×125pt; the mark artwork spans x 519–582 / y 31–95). Footer:
+ * the strip carries no baked logo, so the slot sits just above the strip, right-aligned
+ * to the header mark's right edge; the strip's own bottom offset is relative to the
+ * fixed band container, so the mark clears the strip by `gap` above its `stripHeight`.
+ * The placed mark keeps its intrinsic aspect — react-pdf scales an <Image> with only
+ * one fixed dimension proportionally (contain by width in the header, by height in
+ * the footer; `fit` is NOT honoured by the raster image renderer, never stretch both).
+ */
+export const LOGO_SLOTS = {
+  header: { left: 519, top: 31, width: 63, height: 64 },
+  footer: { height: 17, rightInset: 72, gap: 2, stripHeight: { quotation: 14.7, proforma: 25.5 } },
+} as const;
 
 export const styles = StyleSheet.create({
   // ---- header band (edge-to-edge, 03 §2.1) ----
@@ -30,6 +56,9 @@ export const styles = StyleSheet.create({
   // how the source document is actually built (its header carries no selectable text).
   headerFixed: { position: 'absolute', top: 0, left: 0, width: PAGE.widthPt },
   headerBandImg: { width: PAGE.widthPt, height: 125 },
+  // #36 uploaded-mark overlays: absolutely positioned inside the fixed band container,
+  // ONE fixed dimension each so react-pdf preserves the mark's aspect (contain).
+  headerMarkImg: { position: 'absolute', left: LOGO_SLOTS.header.left, top: LOGO_SLOTS.header.top, width: LOGO_SLOTS.header.width },
 
   // ---- footer strip (03 §2.4) ----
   // The reference footer is a single full-width gold/black info strip (WWW · VAT · AC · CR
@@ -134,10 +163,19 @@ export function Inline({ text, style }: { text: string; style?: Style }) {
   );
 }
 
+/**
+ * Header letterhead band. Default renders the baked-in crop unchanged; when an
+ * uploaded header mark resolved through (`headerMarkOverride`, #36), the same artwork
+ * with its logo region cleared (`headerBandNeutral`) is the backdrop and the mark is
+ * placed in the reserved slot. src/pdf never reads storage — both the neutral band and
+ * the mark arrive fully resolved on PdfAssets.
+ */
 export function HeaderBand({ assets }: { profile: CompanyProfile; assets: PdfAssets }) {
+  const mark = assets.headerMarkOverride;
   return (
     <View fixed style={styles.headerFixed}>
-      <Image style={styles.headerBandImg} src={assets.headerBand} />
+      <Image style={styles.headerBandImg} src={mark ? assets.headerBandNeutral : assets.headerBand} />
+      {mark ? <Image style={styles.headerMarkImg} src={mark} /> : null}
     </View>
   );
 }
@@ -151,8 +189,22 @@ export function FooterBand({
   variant?: 'quotation' | 'proforma';
 }) {
   const proforma = variant === 'proforma';
+  const mark = assets.footerMarkOverride;
+  const slot = LOGO_SLOTS.footer;
+  const stripHeight = proforma ? slot.stripHeight.proforma : slot.stripHeight.quotation;
   return (
     <View fixed style={proforma ? styles.footerFixedPro : styles.footerFixed}>
+      {mark ? (
+        <Image
+          style={{
+            position: 'absolute',
+            right: slot.rightInset,
+            bottom: stripHeight + slot.gap,
+            height: slot.height,
+          }}
+          src={mark}
+        />
+      ) : null}
       <Image
         style={proforma ? styles.footerStripPro : styles.footerStrip}
         src={proforma ? assets.footerStripProforma : assets.footerStrip}

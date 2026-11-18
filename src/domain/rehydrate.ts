@@ -27,17 +27,27 @@ export const StoredDocumentPayloadSchema = z.object({
 export type StoredDocumentPayload = z.infer<typeof StoredDocumentPayloadSchema>;
 
 /** Brand asset paths derived from a profile (browser URLs). Header/footer marks come
- * from the stored profile; the coloured bands are the static bundled brand assets. */
+ * from the stored profile; the coloured bands are the static bundled brand assets.
+ * The `*MarkOverride` fields (#36) carry ONLY an uploaded data-URL mark — when set,
+ * the banner swaps the baked-in header band for the logo-neutral crop and places the
+ * mark in the reserved slot. Bundled path crops stay inert (no override = today's
+ * baked banner, so the HP goldens remain byte-identical). */
 export type RenderAssets = {
   headerMark: string;
   footerMark: string;
   headerBand: string;
+  headerBandNeutral: string;
   footerStrip: string;
   footerStripProforma: string;
+  headerMarkOverride?: string | null;
+  footerMarkOverride?: string | null;
 };
 
 export const STATIC_BRAND_ASSETS = {
   headerBand: '/brand/header-band.jpg',
+  // #36 logo-free header band: identical artwork with the baked Encompass mark
+  // cleared to the band's black; the uploaded mark is placed over the cleared slot.
+  headerBandNeutral: '/brand/header-band-blank.png',
   footerStrip: '/brand/footer-strip.jpg',
   footerStripProforma: '/brand/footer-strip-proforma.png',
 } as const;
@@ -45,17 +55,27 @@ export const STATIC_BRAND_ASSETS = {
 /** Optional per-slot brand-image overrides (#5); falsy = keep the profile's bundled crop. */
 export type BrandAssetOverrides = { headerMark?: string | null; footerMark?: string | null };
 
+/** An override is only ever an uploaded data-URL (storage guards, AC-28); a bundled
+ * `/brand/*` crop path from the profile is NOT an override and never re-renders the band. */
+const isUploadedMark = (mark?: string | null): mark is string =>
+  typeof mark === 'string' && mark.startsWith('data:image');
+
 /**
  * Resolve the PdfAssets a render needs from a profile, layering any device-local brand
  * overrides (uploaded marks held in the `quotegen:assets:v1` slot) over the profile's
- * bundled crop paths. The coloured bands are always the static bundled assets. Pure —
- * the caller reads the overrides from storage; `src/pdf` stays a pure consumer of the
- * resolved asset strings (data-URL in the browser, injected in Node).
+ * bundled crop paths. The coloured bands are always the static bundled assets; #36 adds
+ * the resolved upload (`headerMarkOverride` / `footerMarkOverride`) so the banner can
+ * switch to the logo-neutral band WITHOUT `src/pdf` reading storage. Pure —
+ * the caller reads the overrides from storage (data-URL in the browser, injected in Node).
  */
 export function assetsWithOverrides(profile: CompanyProfile, overrides?: BrandAssetOverrides): RenderAssets {
+  const headerMark = overrides?.headerMark || profile.logos.headerMark;
+  const footerMark = overrides?.footerMark || profile.logos.footerMark;
   return {
-    headerMark: overrides?.headerMark || profile.logos.headerMark,
-    footerMark: overrides?.footerMark || profile.logos.footerMark,
+    headerMark,
+    footerMark,
+    headerMarkOverride: isUploadedMark(headerMark) ? headerMark : null,
+    footerMarkOverride: isUploadedMark(footerMark) ? footerMark : null,
     ...STATIC_BRAND_ASSETS,
   };
 }
