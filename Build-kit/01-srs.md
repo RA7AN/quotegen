@@ -94,6 +94,16 @@ IDs are stable and referenced by the acceptance criteria (05) and eval plan (07)
   server-side `setupComplete` marker; the authenticated app shell gates entry to the document
   wizard until that marker is set, so the setup follows the account across devices. Settings
   exposes a "Run setup again" entry to re-enter the wizard.
+- FR-5.5 Company-profile library + per-quote picker (#31 part 1): a signed-in account can keep
+  several named company profiles (letterheads). Settings exposes a "My profiles" manager to save
+  the current profile as a new row, rename, promote one to the account default, delete, and edit
+  any row by id (the editor binds to the default on open; saves write that row). The wizard shows
+  a profile picker on the Meta step and the Review step to render the *current* quote from any
+  saved profile without changing the account default; the chosen row id persists per draft (its own
+  `localStorage` slot) and re-resolves on reload, self-clearing if the row was deleted. The export
+  snapshots the full resolved profile, so previously generated documents stay deterministic. The
+  active/default profile remains the singular `/api/profile` read used by onboarding; the library
+  is served by plural `/api/profiles` endpoints over the same `profiles` table (no migration).
 
 ### FR-6 Drafts & saved quotes
 - FR-6.1 Autosave the in-progress wizard to `localStorage` on every change (debounced);

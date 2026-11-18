@@ -19,6 +19,7 @@ import { Step1Meta } from './step1-meta';
 import { Step2Lines } from './step2-lines';
 import { Step3Terms } from './step3-terms';
 import { Step4Review } from './step4-review';
+import { ProfilePicker } from './profile-picker';
 import { FloatingToast, FloatingToastStack } from './fields';
 import {
   blockingStep,
@@ -41,8 +42,10 @@ import {
   loadBrandAssets,
   loadProfile,
   readDraft,
+  readProfilePick,
   upsertQuote,
   writeDraft,
+  writeProfilePick,
   type WizardStep,
 } from '@/lib/storage';
 import { assetsWithOverrides } from '@/domain/rehydrate';
@@ -59,9 +62,12 @@ import {
   fetchDraft,
   persistDraft,
   fetchProfile,
+  fetchProfiles,
+  fetchProfileById,
   type ProfileAssetPair,
   type StoredClient,
   type StoredSignoff,
+  type StoredProfileSummary,
 } from './library';
 
 // Browser font registration: bundled TTFs served from /fonts/* (02 §5.5). Idempotent.
@@ -94,6 +100,12 @@ export function Wizard() {
   // #38: brand-mark overrides sourced from the server profile (null = not yet fetched /
   // anonymous, so the resolver falls back to the device-local assets slot).
   const [serverAssets, setServerAssets] = useState<ProfileAssetPair | null>(null);
+  // #31 part 1: the saved-profile library (for the per-quote picker) + the id of the profile
+  // chosen to render THIS quote (null = the account default). The pick persists in its own
+  // localStorage slot so a reload restores a deliberate choice; the export still snapshots the
+  // full chosen profile, so past artifacts are unaffected.
+  const [savedProfiles, setSavedProfiles] = useState<StoredProfileSummary[]>([]);
+  const [profileId, setProfileId] = useState<string | null>(null);
   // Multi-drafts: identity of the SERVER draft this session loads/created (null =
   // not saved yet). "Save draft" creates on first click, refreshes in place after.
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -134,11 +146,29 @@ export function Wizard() {
   useEffect(() => {
     void fetchClients().then(setSavedClients);
     void fetchSignoffs().then(setSavedSignoffs);
-    void fetchProfile().then((sp) => {
-      if (!sp) return;
-      setProfile(sp.profile);
-      setServerAssets(sp.assets);
-    });
+    void fetchProfiles().then(setSavedProfiles);
+    void (async () => {
+      // #31 part 1: a per-quote pick wins over the account default when its row still
+      // resolves; a stale id (deleted row) clears itself and falls back. Both reads are
+      // session-checked, so an anonymous run resolves null and keeps the device-local profile
+      // loaded on mount — fetchProfile makes zero calls, exactly as before.
+      const pickId = readProfilePick(browserKV());
+      if (pickId) {
+        const chosen = await fetchProfileById(pickId);
+        if (chosen) {
+          setProfile(chosen.profile);
+          setServerAssets(chosen.assets);
+          setProfileId(chosen.id);
+          return;
+        }
+        writeProfilePick(browserKV(), null);
+      }
+      const sp = await fetchProfile();
+      if (sp) {
+        setProfile(sp.profile);
+        setServerAssets(sp.assets);
+      }
+    })();
     setNativeShare(canSharePdf());
   }, []);
 
@@ -252,6 +282,32 @@ export function Wizard() {
   const removeSavedSignoff = (id: string): void => {
     void removeSignoff(id).then(async () => setSavedSignoffs(await fetchSignoffs()));
     setReuseNotice('Removed saved sign-off block.');
+  };
+
+  // #31 part 1: render THIS quote from another saved library profile without changing the
+  // account default. Pull the full row, swap the render source + marks, and remember the pick.
+  const useProfileForQuote = async (id: string): Promise<void> => {
+    const chosen = await fetchProfileById(id);
+    if (!chosen) {
+      setStatus('That saved profile could not be loaded.');
+      return;
+    }
+    setProfile(chosen.profile);
+    setServerAssets(chosen.assets);
+    setProfileId(chosen.id);
+    writeProfilePick(browserKV(), chosen.id);
+    setReuseNotice(`Rendering this quote with “${chosen.name || 'the selected profile'}”.`);
+  };
+
+  const useDefaultProfile = async (): Promise<void> => {
+    writeProfilePick(browserKV(), null);
+    setProfileId(null);
+    const sp = await fetchProfile();
+    if (sp) {
+      setProfile(sp.profile);
+      setServerAssets(sp.assets);
+    }
+    setReuseNotice('Back to your account default profile.');
   };
 
   const go = (step: WizardStep) => {
@@ -500,6 +556,16 @@ export function Wizard() {
 
       <main className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
         <WizardErrorBoundary onReset={hardRecover}>
+        {(state.step === 1 || state.step === 4) && (
+          <div className="mb-4">
+            <ProfilePicker
+              profiles={savedProfiles}
+              currentId={profileId}
+              onUse={(id) => void useProfileForQuote(id)}
+              onResetToDefault={() => void useDefaultProfile()}
+            />
+          </div>
+        )}
         {state.step === 1 && (
           <Step1Meta
             doc={state.doc}

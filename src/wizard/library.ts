@@ -54,14 +54,14 @@ async function readList<T>(url: string): Promise<T[]> {
   }
 }
 
-/** POST/DELETE fire-and-forget; returns whether the request was accepted (best-effort). */
-async function write(url: string, method: 'POST', body: unknown): Promise<boolean>;
+/** POST/PUT/PATCH/DELETE fire-and-forget; returns whether the request was accepted (best-effort). */
+async function write(url: string, method: 'POST' | 'PUT' | 'PATCH', body: unknown): Promise<boolean>;
 async function write(url: string, method: 'DELETE'): Promise<boolean>;
-async function write(url: string, method: 'POST' | 'DELETE', body?: unknown): Promise<boolean> {
+async function write(url: string, method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', body?: unknown): Promise<boolean> {
   try {
     const res = await fetch(url, {
       method,
-      ...(method === 'POST' ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}),
+      ...(body !== undefined ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}),
     });
     return res.ok;
   } catch {
@@ -239,4 +239,99 @@ export async function saveProfileServer(
   } catch {
     return false;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Company-profile LIBRARY (#31 part 1)
+//
+// The set of saved, user-scoped profiles behind the Settings "my profiles" manager and the
+// per-quote picker. Same discipline as above: session-checked first (an anonymous run makes
+// ZERO calls and gets []/null so the UI falls back to the single device-local profile), and
+// every call is best-effort (never throws into the wizard/Settings). These talk to the plural
+// /api/profiles endpoints and LEAVE the singular /api/profile (active-profile) seam intact.
+// ---------------------------------------------------------------------------
+
+/** A library row header for list/picker rendering (no payload / marks). */
+export type StoredProfileSummary = { id: string; name: string; isDefault: boolean; updatedAt: string };
+/** One full library row, ready to edit or render: identity + profile + its mark overrides. */
+export type LibraryProfile = ServerProfile & { id: string; name: string; isDefault: boolean };
+
+/** The user's saved profiles (default first), or [] when signed out / unreachable. */
+export async function fetchProfiles(): Promise<StoredProfileSummary[]> {
+  if (!(await authed())) return [];
+  return readList<StoredProfileSummary>('/api/profiles');
+}
+
+/** One full library row by id, or null (signed out / missing / foreign / error). */
+export async function fetchProfileById(id: string): Promise<LibraryProfile | null> {
+  if (!(await authed())) return null;
+  try {
+    const res = await fetch(`/api/profiles/${encodeURIComponent(id)}`, { method: 'GET' });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      id?: string;
+      name?: string;
+      isDefault?: boolean;
+      profile?: CompanyProfile;
+      assets?: ProfileAssetPair | null;
+      setupComplete?: unknown;
+    };
+    if (!json.id || !json.profile) return null;
+    return {
+      id: json.id,
+      name: json.name ?? '',
+      isDefault: json.isDefault === true,
+      profile: json.profile,
+      assets: json.assets ?? { headerMark: null, footerMark: null },
+      setupComplete: json.setupComplete === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Add a new named profile to the library ("save a copy as new"). Returns the new row id,
+ * or null when signed out / unreachable / rejected.
+ */
+export async function createProfileServer(args: {
+  name: string;
+  profile: CompanyProfile;
+  assets: ProfileAssetPair;
+  makeDefault?: boolean;
+}): Promise<string | null> {
+  if (!(await authed())) return null;
+  try {
+    const res = await fetch('/api/profiles', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(args),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { id?: string | null };
+    return typeof json.id === 'string' ? json.id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Patch a row (rename / update payload+marks / promote to default / set the marker). */
+export async function updateProfileServer(
+  id: string,
+  patch: {
+    name?: string;
+    profile?: CompanyProfile;
+    assets?: ProfileAssetPair;
+    makeDefault?: boolean;
+    setupComplete?: boolean;
+  },
+): Promise<boolean> {
+  if (!(await authed())) return false;
+  return write(`/api/profiles/${encodeURIComponent(id)}`, 'PATCH', patch);
+}
+
+/** Remove a row from the library. */
+export async function deleteProfileServer(id: string): Promise<boolean> {
+  if (!(await authed())) return false;
+  return write(`/api/profiles/${encodeURIComponent(id)}`, 'DELETE');
 }

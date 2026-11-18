@@ -36,6 +36,7 @@ export const KEYS = {
   profile: 'quotegen:profile:v1',
   theme: 'quotegen:theme:v1', // 'light' | 'dark'; absent = follow system
   assets: 'quotegen:assets:v1', // #5 brand image overrides (data URLs kept OUT of profile/draft)
+  profilePick: 'quotegen:profile-pick:v1', // #31 per-draft chosen library-profile id (null = account default)
 } as const;
 
 /** Minimal Storage surface — localStorage in the browser, a Map in tests. */
@@ -308,6 +309,35 @@ export function resetProfile(kv: KVStorage): CompanyProfile {
   const fresh = structuredClone(DEFAULT_COMPANY_PROFILE);
   writeProfile(kv, fresh);
   return fresh;
+}
+
+// ---------------------------------------------------------------------------
+// Per-draft chosen profile (#31 part 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * The id of the saved library-profile the current wizard chose to render THIS quote
+ * (#31 part 1). Kept as a bare id string in its own slot (never in the profile/draft
+ * payload) so a deliberate per-quote pick survives a reload and resolves the row again
+ * server-side on mount. `null` means "use the account's default profile" — the pre-#31
+ * behaviour and the anonymous path. The export already snapshots the FULL chosen profile
+ * into `documents.payload`, so past artifacts stay deterministic regardless of this key.
+ */
+export function readProfilePick(kv: KVStorage): string | null {
+  try {
+    return kv.getItem(KEYS.profilePick);
+  } catch {
+    return null;
+  }
+}
+
+export function writeProfilePick(kv: KVStorage, id: string | null): void {
+  try {
+    if (id === null || id === '') kv.removeItem(KEYS.profilePick);
+    else kv.setItem(KEYS.profilePick, id);
+  } catch {
+    // Best-effort.
+  }
 }
 
 // ---------------------------------------------------------------------------

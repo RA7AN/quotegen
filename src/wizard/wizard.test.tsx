@@ -27,7 +27,7 @@ vi.mock('@/pdf/index', () => ({
 }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => search.current }));
 vi.mock('./telemetry', () => ({ logActivity: vi.fn(async () => {}) }));
-vi.mock('./library', () => ({
+const lib = vi.hoisted(() => ({
   fetchClients: vi.fn(async () => []),
   fetchSignoffs: vi.fn(async () => []),
   saveClient: vi.fn(async () => false),
@@ -40,11 +40,14 @@ vi.mock('./library', () => ({
   persistDraft: vi.fn(async () => null),
   removeDraft: vi.fn(async () => false),
   fetchProfile: vi.fn(async () => null),
+  fetchProfiles: vi.fn(async () => []),
+  fetchProfileById: vi.fn(async () => null),
 }));
+vi.mock('./library', () => lib);
 
 import { Wizard } from './wizard';
-import { KEYS, encodeDraft } from '@/lib/storage';
-import { createBlankQuoteDocument } from '@/domain/defaults';
+import { KEYS, encodeDraft, readProfilePick, browserKV } from '@/lib/storage';
+import { createBlankQuoteDocument, DEFAULT_COMPANY_PROFILE } from '@/domain/defaults';
 import type { QuoteDocument } from '@/domain/types';
 
 // readDraft validates through QuoteDocumentSchema, which requires a non-empty
@@ -62,6 +65,15 @@ function validDraftDoc(): QuoteDocument {
 beforeEach(() => {
   localStorage.clear();
   search.current = new URLSearchParams();
+  // The library seam is shared across tests; reset the profile reads to their null/empty
+  // defaults so the step-gating / resume cases stay on the anonymous fallback path. Use the
+  // hoisted `lib` handle (importing the mocked fns would re-type them to the real signatures).
+  lib.fetchProfile.mockReset();
+  lib.fetchProfile.mockResolvedValue(null);
+  lib.fetchProfiles.mockReset();
+  lib.fetchProfiles.mockResolvedValue([]);
+  lib.fetchProfileById.mockReset();
+  lib.fetchProfileById.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -117,5 +129,52 @@ describe('Wizard resume banner (AC-12 / EC-11)', () => {
     expect(screen.getByText(/could not be read/)).toBeTruthy();
     // The wizard chrome is still mounted and usable behind the notice.
     expect(screen.getByRole('button', { name: '1. Meta & client' })).toBeTruthy();
+  });
+});
+
+describe('Wizard per-quote profile pick (#31 part 1)', () => {
+  it('applies a persisted pick on mount and offers the library with that row in use', async () => {
+    localStorage.setItem(KEYS.profilePick, 'pb');
+    lib.fetchProfiles.mockResolvedValue([
+      { id: 'pa', name: 'Main Co', isDefault: true, updatedAt: 'x' } as never,
+      { id: 'pb', name: 'Branch X', isDefault: false, updatedAt: 'x' } as never,
+    ]);
+    lib.fetchProfileById.mockResolvedValue({
+      id: 'pb',
+      name: 'Branch X',
+      isDefault: false,
+      profile: { ...DEFAULT_COMPANY_PROFILE, legalNameEn: 'BRANCH X TRADING' },
+      assets: { headerMark: null, footerMark: null },
+      setupComplete: true,
+    } as never);
+
+    render(<Wizard />);
+
+    // A non-default row was applied, so the deviation-only "Use account default instead"
+    // reset appears — the stable signal that the persisted pick overrode the account default
+    // (the disclosure itself exposes no unique a11y role, and its summary fragments across
+    // text nodes, so we anchor on the reset button + the In-use badge).
+    const resetBtn = await screen.findByRole('button', { name: 'Use account default instead' });
+    expect(resetBtn).toBeTruthy();
+    expect(screen.getByText('In use')).toBeTruthy();
+    expect(readProfilePick(browserKV())).toBe('pb');
+    // A persisted pick short-circuits before the account-default read.
+    expect(lib.fetchProfile).not.toHaveBeenCalled();
+  });
+
+  it('self-clears a stale pick and falls back to the account default', async () => {
+    localStorage.setItem(KEYS.profilePick, 'gone');
+    lib.fetchProfileById.mockResolvedValue(null); // deleted row → 404 / null
+    lib.fetchProfile.mockResolvedValue({
+      profile: DEFAULT_COMPANY_PROFILE,
+      assets: { headerMark: null, footerMark: null },
+      setupComplete: true,
+    } as never);
+
+    render(<Wizard />);
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(readProfilePick(browserKV())).toBeNull();
+    expect(lib.fetchProfile).toHaveBeenCalled();
   });
 });
