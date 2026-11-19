@@ -24,7 +24,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TextField, RichInput, NumberStepper, PrefixCombobox, SectionCard } from './fields';
 import { ClientPicker } from './client-picker';
-import type { FieldErrors } from './state';
+import { MIN_VALIDITY_DAYS, type FieldErrors } from './state';
 import type { WizardAction } from './state';
 import type { Client, QuoteDocument } from '@/domain/types';
 import type { StoredClient } from './library';
@@ -301,7 +301,7 @@ function AttnRow({
         <div className="w-28 shrink-0 sm:w-24">
           <select
             aria-label="Salutation"
-            className="w-full min-h-[2.75rem] rounded border border-neutral-300 bg-white px-2 text-sm"
+            className="w-full min-h-[2.75rem] rounded border border-neutral-300 bg-white px-2 text-base"
             value={title === '' ? '__none__' : isCustom ? '__custom__' : title}
             onChange={(e) => {
               const v = e.target.value;
@@ -323,7 +323,7 @@ function AttnRow({
             <input
               type="text"
               aria-label="Custom salutation"
-              className="w-full min-h-[2.75rem] rounded border border-neutral-300 px-2 text-sm"
+              className="w-full min-h-[2.75rem] rounded border border-neutral-300 px-2 text-base"
               value={title === 'Custom' ? '' : title}
               placeholder="e.g. Prof"
               onChange={(e) => update(e.target.value, name)}
@@ -424,7 +424,7 @@ export function Step1Meta({
           <legend className="mb-2 text-sm font-medium">Template</legend>
           <div className="flex flex-wrap gap-4">
             {(['quotation', 'proforma'] as const).map((t) => (
-              <label key={t} className="flex min-h-[2.5rem] items-center gap-2 text-sm capitalize">
+              <label key={t} className="flex min-h-[2.75rem] items-center gap-2 text-sm capitalize">
                 <input
                   type="radio"
                   name="template"
@@ -456,6 +456,7 @@ export function Step1Meta({
             type="date"
             value={doc.meta.validUntilISO}
             error={errors['meta.validUntilISO']}
+            hint={`Must be at least ${MIN_VALIDITY_DAYS} days after the quotation date.`}
             onChange={(v) => dispatch({ type: 'setMeta', patch: { validUntilISO: v } })}
           />
         </div>
@@ -474,11 +475,13 @@ export function Step1Meta({
           <TextField
             label="Cust ID"
             value={doc.client.custId}
+            inputMode="numeric"
             onChange={(v) => dispatch({ type: 'setClient', patch: { custId: v } })}
           />
           <TextField
             label="CR No."
             value={doc.client.crNo}
+            inputMode="numeric"
             onChange={(v) => dispatch({ type: 'setClient', patch: { crNo: v } })}
           />
         </div>

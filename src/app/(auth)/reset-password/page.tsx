@@ -72,7 +72,7 @@ function ResetForm() {
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
+        className="w-full min-h-[2.75rem] rounded bg-black px-4 text-base font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
       >
         {busy ? 'Updating…' : 'Reset password'}
       </button>

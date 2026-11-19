@@ -39,7 +39,7 @@ export function Step2Lines({
             <button
               type="button"
               onClick={onAddLine}
-              className="rounded bg-black px-3 py-1 text-sm font-medium text-white hover:bg-neutral-800"
+              className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-4 text-sm font-medium text-white hover:bg-neutral-800"
             >
               + Add line
             </button>
@@ -151,31 +151,38 @@ function SplitsEditor({ doc, errors, dispatch }: { doc: QuoteDocument; errors: F
     <div>
       <h4 className="mb-1 text-sm font-medium">Payment splits (must total 100%)</h4>
       {splits.map((sp, i) => (
-        <div key={i} className="mb-2 grid grid-cols-[1fr_90px_auto] items-center gap-2">
-          <input
-            aria-label={`Split ${i + 1} label`}
-            value={sp.label}
-            className={inputClass}
-            onChange={(e) => setSplits(splits.map((s, j) => (j === i ? { ...s, label: e.target.value } : s)))}
-          />
-          <input
-            aria-label={`Split ${i + 1} percent`}
-            inputMode="decimal"
-            defaultValue={(sp.percentHundredths / 100).toString()}
-            className={inputClass}
-            onBlur={(e) => {
-              const pct = parsePercentHundredths(e.target.value);
-              if (pct !== null) {
-                setSplits(splits.map((s, j) => (j === i ? { ...s, percentHundredths: pct } : s)));
-              } else {
-                e.target.value = (sp.percentHundredths / 100).toString();
-              }
-            }}
-          />
+        <div key={i} className="mb-2 flex flex-wrap items-end gap-3 sm:grid sm:grid-cols-[1fr_90px_auto]">
+          <label className="block min-w-0 flex-1 text-xs">
+            <span className="mb-1 block font-medium">Split {i + 1} label</span>
+            <input
+              aria-label={`Split ${i + 1} label`}
+              value={sp.label}
+              className={inputClass}
+              onChange={(e) => setSplits(splits.map((s, j) => (j === i ? { ...s, label: e.target.value } : s)))}
+            />
+          </label>
+          <label className="block w-24 text-xs">
+            <span className="mb-1 block font-medium">%</span>
+            <input
+              aria-label={`Split ${i + 1} percent`}
+              inputMode="decimal"
+              defaultValue={(sp.percentHundredths / 100).toString()}
+              className={inputClass}
+              onBlur={(e) => {
+                const pct = parsePercentHundredths(e.target.value);
+                if (pct !== null) {
+                  setSplits(splits.map((s, j) => (j === i ? { ...s, percentHundredths: pct } : s)));
+                } else {
+                  e.target.value = (sp.percentHundredths / 100).toString();
+                }
+              }}
+            />
+          </label>
+          {/* #50: remove was a 22 px chip; now a 44 px control kept clear of the inputs. */}
           <button
             type="button"
             aria-label={`Remove split ${i + 1}`}
-            className="rounded border border-red-300 px-2 py-1 text-xs text-red-700"
+            className="inline-flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded border border-red-300 px-2 text-sm text-red-700"
             onClick={() => setSplits(splits.filter((_, j) => j !== i))}
           >
             ✕
@@ -187,7 +194,7 @@ function SplitsEditor({ doc, errors, dispatch }: { doc: QuoteDocument; errors: F
       )}
       <button
         type="button"
-        className="rounded border border-neutral-300 px-3 py-1 text-xs font-medium"
+        className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-300 px-4 text-sm font-medium"
         onClick={() => setSplits([...splits, { label: `${splits.length === 0 ? 100 : 0}% Advance`, percentHundredths: 0 }])}
       >
         + Add split

@@ -146,8 +146,15 @@ export function FieldShell({ label, required, error, hint, children }: { label: 
   );
 }
 
+/**
+ * #50 (P1): the single field token the whole product inherits. It was `text-sm py-1.5`
+ * (14 px, ~34 px tall), which makes iOS Safari auto-zoom the viewport to ~230 % on focus
+ * and leaves a sub-44 px target on every other browser — NFR-6 / the repo's own "≥16 px,
+ * ≥44 px" rule. Now `text-base` + `min-h-[2.75rem]` so focusing changes no scale.
+ * Labels/hints/errors below stay `text-xs`/`text-sm`: they are never focused.
+ */
 export const inputClass =
-  'w-full rounded border border-neutral-300 bg-white px-2.5 py-1.5 text-sm ' +
+  'w-full min-h-[2.75rem] rounded border border-neutral-300 bg-white px-3 py-2 text-base ' +
   'focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold';
 
 /* ------------------------------------------------------------------ *
@@ -221,7 +228,7 @@ export function PasswordField({
           aria-label={revealed ? 'Hide password' : 'Show password'}
           aria-pressed={revealed}
           title={revealed ? 'Hide password' : 'Show password'}
-          className="absolute inset-y-0 right-0 flex items-center px-2.5 text-neutral-500 hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-gold"
+          className="absolute inset-y-0 right-0 flex min-w-[2.75rem] items-center justify-center px-2.5 text-neutral-500 hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-gold"
         >
           <EyeIcon off={revealed} />
         </button>
@@ -267,9 +274,12 @@ function applyWrap(el: RichEl, before: string, after: string, onChange: (v: stri
 }
 
 function FormatToolbar({ onFormat }: { onFormat: (before: string, after?: string) => void }) {
-  const btn = 'rounded border border-neutral-300 bg-white px-2 py-0.5 text-xs leading-none hover:bg-neutral-100';
+  // #50: the inline B/I/U toggles measured 26×18 in a 4 px gap row — below the 44 px / 8 px
+  // thumb rule (AC-2). Now square 44 px tap targets with a 12 px gap; the label is aria-only.
+  const btn =
+    'inline-flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded border border-neutral-300 bg-white text-sm leading-none hover:bg-neutral-100';
   return (
-    <div className="mb-1 flex gap-1">
+    <div className="mb-1 flex gap-3">
       <button type="button" aria-label="Bold" className={btn} style={{ fontWeight: 700 }} onClick={() => onFormat('**')}>
         B
       </button>
@@ -292,6 +302,8 @@ export function TextField({
   hint,
   placeholder,
   type = 'text',
+  inputMode,
+  autoComplete,
 }: {
   label: string;
   required?: boolean;
@@ -301,6 +313,8 @@ export function TextField({
   hint?: string;
   placeholder?: string;
   type?: 'text' | 'date' | 'email';
+  inputMode?: 'numeric' | 'decimal' | 'tel' | 'email';
+  autoComplete?: string;
 }) {
   const id = useId();
   return (
@@ -310,6 +324,8 @@ export function TextField({
         type={type}
         value={value}
         placeholder={placeholder}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
         aria-invalid={error ? true : undefined}
         className={inputClass}
         onChange={(e) => onChange(e.target.value)}
@@ -466,15 +482,16 @@ export function StringListEditor({
     <div className="space-y-2">
       <span className="block text-sm font-medium text-black">{label}</span>
       {lines.map((l, i) => (
-        <div key={i} className="flex items-start gap-2">
-          <span aria-hidden className="mt-2 select-none text-muted">•</span>
+        <div key={i} className="flex items-start gap-3">
+          <span aria-hidden className="mt-3 select-none text-muted">•</span>
           <div className="flex-1">
             <RichInput value={l} placeholder={placeholder} onChange={(v) => set(i, v)} />
           </div>
+          {/* #50: remove was a 27×26 px `text-xs` chip — now a 44 px row control. */}
           <button
             type="button"
             aria-label={`Remove ${label} ${i + 1}`}
-            className="mt-6 rounded border border-red-300 px-2 py-1 text-xs text-red-700"
+            className="mt-6 inline-flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded border border-red-300 px-2 text-sm text-red-700"
             onClick={() => remove(i)}
           >
             ✕
@@ -485,7 +502,7 @@ export function StringListEditor({
       {hint && !error && <p className="text-xs text-muted">{hint}</p>}
       <button
         type="button"
-        className="rounded border border-neutral-300 px-3 py-1 text-xs font-medium hover:bg-neutral-100"
+        className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-300 px-4 text-sm font-medium hover:bg-neutral-100"
         onClick={() => onChange([...lines, ''])}
       >
         + {addLabel}

@@ -70,14 +70,14 @@ import {
   type StoredProfileSummary,
 } from './library';
 
-// Browser font registration: bundled TTFs served from /fonts/* (02 §5.5). Idempotent.
+// Browser font registration: bundled TTFs served from the /fonts folder (02 §5.5). Idempotent.
 registerFonts((file) => `/fonts/${file}`);
 
-const STEPS: ReadonlyArray<{ n: WizardStep; label: string }> = [
-  { n: 1, label: 'Meta & client' },
-  { n: 2, label: 'Line items & commercials' },
-  { n: 3, label: 'Terms & conditions' },
-  { n: 4, label: 'Review & export' },
+const STEPS: ReadonlyArray<{ n: WizardStep; label: string; short: string }> = [
+  { n: 1, label: 'Meta & client', short: 'Meta' },
+  { n: 2, label: 'Line items & commercials', short: 'Items' },
+  { n: 3, label: 'Terms & conditions', short: 'Terms' },
+  { n: 4, label: 'Review & export', short: 'Review' },
 ];
 
 type ResumeState = 'checking' | 'none' | 'found' | 'corrupt';
@@ -114,7 +114,25 @@ export function Wizard() {
   // (false during SSR/prerender, so the fallback download path is the default).
   const [nativeShare, setNativeShare] = useState(false);
   const [sharing, setSharing] = useState(false);
+  // #50: a scroll container + a "N fields need attention" count so an invalid Continue on a
+  // 2 000 px step 1 can bring the (off-screen) error into view and focus the first bad field.
+  const mainRef = useRef<HTMLElement>(null);
+  const [errorCount, setErrorCount] = useState(0);
   const draftParam = useSearchParams().get('draft');
+
+  // After React commits the newly-revealed inline errors, centre + focus the first invalid
+  // control. Focus also raises the keyboard, which is exactly where a phone user needs to be.
+  const revealFirstError = () => {
+    requestAnimationFrame(() => {
+      const root = mainRef.current;
+      if (!root) return;
+      const bad = root.querySelector<HTMLElement>('[aria-invalid="true"]');
+      if (bad) {
+        bad.scrollIntoView({ block: 'center' });
+        bad.focus({ preventScroll: true });
+      }
+    });
+  };
 
   const dispatch = (a: Parameters<typeof dispatchRaw>[0], opts?: { silent?: boolean }) => {
     // Programmatic seed dispatches (e.g. the segmented doc-number default on mount)
@@ -316,22 +334,36 @@ export function Wizard() {
     // step whenever an earlier step regressed — a draft opened under older rules
     // failing the newer 30-day validity check had no way out and no error shown.
     if (step < state.step) {
+      setErrorCount(0);
       dispatch({ type: 'goto', step });
       return;
     }
     setAttempted((a) => ({ ...a, [state.step]: true }));
-    if (step > state.step && Object.keys(validateStep(state.step, state.doc)).length > 0) return; // block + show errors here
+    if (step > state.step) {
+      const currentErrors = validateStep(state.step, state.doc);
+      if (Object.keys(currentErrors).length > 0) {
+        // #50: block, surface inline errors, and jump the viewport to the first one — the
+        // errors used to render far above the tapped Continue button, so the tap looked dead.
+        setErrorCount(Object.keys(currentErrors).length);
+        revealFirstError();
+        return;
+      }
+    }
     if (step > state.step) {
       // Blocked by a problem on an EARLIER step: bounce there with its errors
       // surfaced and a fleeting toast, instead of swallowing the click silently.
       const blocker = blockingStep(state.doc, step);
       if (blocker !== null) {
         setAttempted((a) => ({ ...a, [blocker]: true }));
+        const blockerErrors = validateStep(blocker, state.doc);
+        setErrorCount(Object.keys(blockerErrors).length);
         dispatch({ type: 'goto', step: blocker });
         setReuseNotice(`Step ${blocker} needs fixing before you can continue — see the highlighted fields.`);
+        revealFirstError();
         return;
       }
     }
+    setErrorCount(0);
     // #11 slice 3: advancing off Step 1 auto-saves the (deduped) client profile. Only on
     // forward nav past a validated step, so half-typed/invalid clients never pile up.
     if (state.step === 1 && step > 1) void autoSaveClient(state.doc.client);
@@ -386,14 +418,25 @@ export function Wizard() {
       return;
     }
     setStatus('Opening PDF for print…');
+    // #50: `window.open` must be called synchronously inside the click or the browser drops it
+    // as a popup. It used to run AFTER the async render, so on a phone (where the user
+    // activation expires during renderToBlob) Print silently did nothing. Grab the tab first,
+    // then point it at the blob once it resolves; fall back to a download if it was blocked.
+    const tab = typeof window !== 'undefined' ? window.open('', '_blank') : null;
     try {
-      const { blob } = await renderToBlob(input);
+      const { blob, filename } = await renderToBlob(input);
       if (lastBlobUrl.current) URL.revokeObjectURL(lastBlobUrl.current);
       lastBlobUrl.current = URL.createObjectURL(blob);
-      window.open(lastBlobUrl.current, '_blank', 'noopener');
-      setStatus('PDF opened in a new tab — use its print button.');
+      if (tab) {
+        tab.location.href = lastBlobUrl.current;
+        setStatus('PDF opened in a new tab — use its print button.');
+      } else {
+        saveToDisk(blob, filename);
+        setStatus('The print tab was blocked — downloaded the PDF instead; open it to print.');
+      }
       void logActivity('exported', { docKind: state.doc.template }); // #10 KPI source
     } catch (err) {
+      if (tab) tab.close();
       setStatus(`Render failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
@@ -476,33 +519,42 @@ export function Wizard() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <nav aria-label="Wizard progress" className="mb-5">
-        <ol className="flex flex-wrap items-center gap-2">
+    <div className="mx-auto max-w-5xl px-4 py-4">
+      <nav aria-label="Wizard progress" className="mb-3">
+        {/* #50: four full-label chips wrapped to 3–4 lines (92 px of chrome on every step, 13 %
+            of the viewport). Phones get one non-wrapping row of short labels at ≤48 px; the
+            accessible name keeps the full label so a screen reader still hears "Line items &
+            commercials". The wizard.test contract relies on that name. */}
+        <ol className="flex flex-nowrap items-center gap-2 overflow-x-auto">
           {STEPS.map((s) => {
             const statusLabel = s.n < state.step ? 'done' : s.n === state.step ? 'active' : 'pending';
             const allowed = s.n <= furthestAllowedStep(state.doc) || s.n <= state.step;
             return (
-              <li key={s.n} className="flex flex-1 items-center gap-2">
+              <li key={s.n} className="shrink-0">
                 <button
                   type="button"
                   aria-current={statusLabel === 'active' ? 'step' : undefined}
+                  aria-label={`${s.n}. ${s.label}`}
                   disabled={!allowed}
+                  title={allowed ? s.label : 'Finish the required fields on this step to unlock later steps'}
                   onClick={() => go(s.n)}
                   className={
                     statusLabel === 'active'
-                      ? 'min-h-[2.75rem] rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white'
+                      ? 'min-h-[2.75rem] whitespace-nowrap rounded-md bg-black px-3 text-sm font-medium text-white'
                       : statusLabel === 'done'
-                        ? 'min-h-[2.75rem] rounded-md px-3 py-1.5 text-sm font-medium text-black hover:bg-neutral-100 disabled:opacity-40'
-                        : 'min-h-[2.75rem] rounded-md px-3 py-1.5 text-sm text-muted hover:bg-neutral-100 disabled:opacity-40'
+                        ? 'min-h-[2.75rem] whitespace-nowrap rounded-md px-3 text-sm font-medium text-black hover:bg-neutral-100 disabled:opacity-40'
+                        : 'min-h-[2.75rem] whitespace-nowrap rounded-md px-3 text-sm text-muted hover:bg-neutral-100 disabled:opacity-40'
                   }
                 >
-                  {s.n}. {s.label}
+                  {s.n}. {s.short}
                 </button>
               </li>
             );
           })}
         </ol>
+        {furthestAllowedStep(state.doc) < 4 && (
+          <p className="mt-1 text-xs text-muted">Locked steps unlock once the required fields on this step are valid.</p>
+        )}
       </nav>
 
       {resume === 'found' && draftRef && (
@@ -514,7 +566,7 @@ export function Wizard() {
           <span className="flex gap-2">
             <button
               type="button"
-              className="rounded bg-black px-3 py-1 text-xs font-medium text-white"
+              className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-4 text-sm font-medium text-white"
               onClick={() => {
                 dispatch({ type: 'hydrate', step: draftRef.step, doc: draftRef.doc });
                 hydrated.current = true;
@@ -525,7 +577,7 @@ export function Wizard() {
             </button>
             <button
               type="button"
-              className="rounded border border-neutral-400 px-3 py-1 text-xs"
+              className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-4 text-sm"
               onClick={() => {
                 clearDraft(browserKV());
                 dispatch({ type: 'reset' });
@@ -554,7 +606,7 @@ export function Wizard() {
         </div>
       )}
 
-      <main className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+      <main ref={mainRef} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
         <WizardErrorBoundary onReset={hardRecover}>
         {(state.step === 1 || state.step === 4) && (
           <div className="mb-4">
@@ -603,13 +655,31 @@ export function Wizard() {
         </WizardErrorBoundary>
       </main>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <span className="flex shrink-0 items-center gap-2">
+      {errorCount > 0 && (
+        <p role="alert" className="mt-4 text-center text-sm font-medium text-red-700">
+          {errorCount} {errorCount === 1 ? 'field needs' : 'fields need'} attention — the first one is
+          highlighted above.
+        </p>
+      )}
+      <p className="mt-3 break-words text-center text-xs text-muted">
+        {state.step === 4
+          ? `Filename will be: ${filenameFor(state.doc)}`
+          : draftId
+            ? 'Autosaved locally; draft row updates when you save'
+            : 'Autosaved locally as you type'}
+      </p>
+
+      {/* #50: Back / Save draft / Continue used to sit at doc-y ≈ 2 000 on a 2 096 px step 1 —
+          a static target that scrolled off-screen, so the primary action vanished behind the
+          form. The bar now sticks just above the fixed tab bar (+ safe area) and stays put at
+          every scroll position of every step (AC-4). */}
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+        <span className="flex shrink-0 items-center gap-3">
           <button
             type="button"
             onClick={() => go(state.step === 1 ? 1 : ((state.step - 1) as WizardStep))}
             disabled={state.step === 1}
-            className="min-h-[2.75rem] rounded border border-neutral-400 px-4 py-2 text-sm disabled:opacity-40"
+            className="min-h-[2.75rem] rounded border border-neutral-400 px-4 text-sm disabled:opacity-40"
           >
             ← Back
           </button>
@@ -618,23 +688,16 @@ export function Wizard() {
             onClick={() => void saveDraftNow()}
             disabled={savingDraft}
             title="Save this form to your drafts and resume it later from Drafts"
-            className="min-h-[2.75rem] rounded border border-neutral-400 px-4 py-2 text-sm hover:bg-neutral-100 disabled:opacity-40"
+            className="min-h-[2.75rem] rounded border border-neutral-400 px-4 text-sm hover:bg-neutral-100 disabled:opacity-40"
           >
             {savingDraft ? 'Saving…' : draftId ? 'Update draft' : 'Save draft'}
           </button>
-        </span>
-        <span className="min-w-0 flex-1 truncate text-center text-xs text-muted">
-          {state.step === 4
-            ? `Filename will be: ${filenameFor(state.doc)}`
-            : draftId
-              ? 'Autosaved locally; draft row updates when you save'
-              : 'Autosaved locally as you type'}
         </span>
         {state.step < 4 && (
           <button
             type="button"
             onClick={() => go((state.step + 1) as WizardStep)}
-            className="min-h-[2.75rem] shrink-0 rounded bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800"
+            className="min-h-[2.75rem] shrink-0 rounded bg-black px-4 text-sm font-semibold text-white hover:bg-neutral-800"
           >
             Continue →
           </button>

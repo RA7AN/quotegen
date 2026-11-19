@@ -35,16 +35,16 @@ export function ClientPicker({
         </summary>
         <ul className="mt-2 space-y-1">
           {clients.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-medium">{c.name || '(unnamed)'}</span>
                 {c.custId ? <span className="ml-1 text-xs text-muted">· {c.custId}</span> : null}
               </span>
-              <span className="flex gap-2">
+              <span className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => onPick(c.data)}
-                  className="rounded bg-black px-2.5 py-1 text-xs font-medium text-white hover:bg-neutral-800"
+                  className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-3 text-sm font-medium text-white hover:bg-neutral-800"
                 >
                   Use
                 </button>
@@ -52,7 +52,7 @@ export function ClientPicker({
                   type="button"
                   onClick={() => setPending(c)}
                   aria-label={`Remove saved client ${c.name || c.id}`}
-                  className="rounded border border-red-300 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50"
+                  className="inline-flex min-h-[2.75rem] items-center rounded border border-red-300 px-3 text-sm text-red-700 hover:bg-red-50"
                 >
                   Remove
                 </button>

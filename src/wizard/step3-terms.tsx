@@ -111,7 +111,7 @@ export function Step3Terms({
           <button
             type="button"
             onClick={restoreDefaults}
-            className="rounded border border-neutral-300 px-3 py-1 text-xs font-medium hover:bg-neutral-100"
+            className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-300 px-4 text-sm font-medium hover:bg-neutral-100"
           >
             ↺ Restore default clauses
           </button>
@@ -131,19 +131,25 @@ export function Step3Terms({
                 <RichTextArea ariaLabel={`Clause ${i + 1}`} rows={2} value={c} className={inputClass} onChange={(v) => update(i, v)} />
               </div>
             </div>
-            <div className="flex items-center gap-1 pl-7">
-              <RowBtn label={`Move clause ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)}>↑</RowBtn>
-              <RowBtn label={`Move clause ${i + 1} down`} disabled={i === clauses.length - 1} onClick={() => move(i, 1)}>↓</RowBtn>
-              <RowBtn label={`Insert clause after ${i + 1}`} onClick={() => insertAt(i + 1)}>＋</RowBtn>
-              <RowBtn label={`Remove clause ${i + 1}`} danger onClick={() => requestRemove(i)}>✕</RowBtn>
-              {isDefaultClause(c) && <span className="ml-1 text-[11px] italic text-muted">default</span>}
+            <div className="flex flex-wrap items-center gap-3 pl-7">
+              {/* #50: insert (＋) used to sit directly beside remove (✕) at 26–30 px — one mis-tap
+                  away on a phone. Reorder + insert stay grouped; delete is separated by a divider. */}
+              <span className="flex items-center gap-3">
+                <RowBtn label={`Move clause ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)}>↑</RowBtn>
+                <RowBtn label={`Move clause ${i + 1} down`} disabled={i === clauses.length - 1} onClick={() => move(i, 1)}>↓</RowBtn>
+                <RowBtn label={`Insert clause after ${i + 1}`} onClick={() => insertAt(i + 1)}>＋</RowBtn>
+              </span>
+              <span className="ml-2 flex items-center gap-3 border-l border-neutral-200 pl-3">
+                <RowBtn label={`Remove clause ${i + 1}`} danger onClick={() => requestRemove(i)}>✕</RowBtn>
+              </span>
+              {isDefaultClause(c) && <span className="text-[11px] italic text-muted">default</span>}
             </div>
           </div>
         ))}
 
         <button
           type="button"
-          className="rounded border border-neutral-300 px-3 py-1 text-xs font-medium hover:bg-neutral-100"
+          className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-300 px-4 text-sm font-medium hover:bg-neutral-100"
           onClick={() => insertAt(Math.max(0, clauses.length - 1))}
         >
           + Add clause
@@ -153,20 +159,20 @@ export function Step3Terms({
       {suggestions.length > 0 && (
         <SectionCard title="Suggested clauses" dashed>
           {suggestions.map((s) => (
-            <div key={s} className="flex flex-wrap items-center justify-between gap-2 text-sm text-neutral-600">
+            <div key={s} className="flex flex-wrap items-center justify-between gap-3 text-sm text-neutral-600">
               <span className="italic">{s}</span>
-              <span className="flex gap-2">
+              <span className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => acceptSuggestion(s)}
-                  className="rounded bg-black px-2.5 py-1 text-xs font-medium text-white hover:bg-neutral-800"
+                  className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-3 text-sm font-medium text-white hover:bg-neutral-800"
                 >
                   Accept
                 </button>
                 <button
                   type="button"
                   onClick={() => setDismissed((d) => [...d, s])}
-                  className="rounded border border-neutral-400 px-2.5 py-1 text-xs hover:bg-neutral-100"
+                  className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-3 text-sm hover:bg-neutral-100"
                 >
                   Dismiss
                 </button>
@@ -215,7 +221,7 @@ function RowBtn({
   danger?: boolean;
   children: ReactNode;
 }) {
-  const base = 'rounded border px-2 py-1 text-xs disabled:opacity-40';
+  const base = 'inline-flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded border text-sm disabled:opacity-40';
   const tone = danger ? 'border-red-300 text-red-700' : 'border-neutral-300 text-black hover:bg-neutral-100';
   return (
     <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className={`${base} ${tone}`}>
