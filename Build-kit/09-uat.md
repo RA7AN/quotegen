@@ -430,7 +430,31 @@ without changing any other banner chrome; the no-upload path stays byte-identica
   identical) and the resolver (`*MarkOverride` set for data-URLs, null for bundled/empty) stay green.
   `[AC-6]`
 
-## 21. Sign-off
+## 21. Preview stability + product icon `[issues #46/#47 · 01 FR-7.5/FR-5.7, AC-6 · HP-8, EC-19]`
+
+The Step-4 preview no longer reloads for unrelated UI changes, and the app now identifies itself in
+the browser tab / home screen. No PDF bytes are involved in either change.
+
+- ☐ Reading position survives UI churn: reach Step 4, scroll the preview to page 2, then type in
+  **Save quote as** (and separately let a floating toast auto-dismiss). The preview stays on page 2
+  with no blank frame. Instrumented check: `URL.createObjectURL` calls and iframe `src` writes stay
+  at **0** across keystrokes (before the fix each keystroke produced one of each). `[FR-7.5, EC-19]`
+- ☐ Still live when data changes: go back to Step 2, edit a line item, return to Step 4 — the
+  preview shows the new amount (the memo is keyed on the render input, not frozen). `[FR-7.5, HP-8]`
+- ☐ Exports unaffected: **Download PDF**, **Print** and **Share** each still produce the current
+  document (they build their own fresh blob on click, independent of the preview). `[FR-7.1–7.4]`
+- ☐ Output unchanged: `eval:golden` is still **5 pages @ 0 px** and `eval:pdfs` 26/26; the fix is
+  viewer wiring only, so archived artifacts and goldens do not move. `[AC-6]`
+- ☐ Product icon present: the browser tab shows the gold `Q` on brand black; view-source shows
+  `rel="icon"` links for `icon.svg` (SVG) and `icon.png` (PNG fallback) plus an
+  `apple-touch-icon` for `apple-icon.png`, all served 200. On iOS, "Add to Home Screen" shows the
+  same tile. `[FR-5.7]`
+- ☐ Icon is product chrome only: it never appears in the PDF and is not user-editable — the
+  company/brand marks from FR-5.5/5.6 remain the only branding inside the document. `[FR-5.7]`
+- ☐ Tests: `step4-review.test.tsx` pins both directions (one stable viewer element while `input` is
+  unchanged; a rebuilt element when `input` changes) and the full suite stays green. `[AC-6]`
+
+## 22. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -454,6 +478,7 @@ without changing any other banner chrome; the no-upload path stays byte-identica
 | 18 First-run onboarding | | |
 | 19 Profile library + per-quote picker | | |
 | 20 Brand mark in header/footer banner | | |
+| 21 Preview stability + product icon | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

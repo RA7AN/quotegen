@@ -96,6 +96,20 @@ manually. Each ends in a downloaded PDF.
 
 ---
 
+## HP-8 — Review & export without the preview resetting
+
+1. Reach Step 4 with a valid document; the preview loads the same PDF the export path produces and
+   shows page 1.
+2. Scroll the preview to page 2, then type in the **Save quote as** field (or let a floating toast
+   auto-dismiss). The preview keeps showing page 2 — no blank frame, no jump back to page 1, no new
+   blob URL for the viewer.
+3. Go back to Step 2, change a line item, and return to Step 4: the preview reflects the edit (it
+   re-renders because the render input actually changed).
+4. The browser tab shows the product icon (gold `Q` on brand black), as does the iOS home screen
+   tile — FR-5.7. The PDF output is unaffected by either icon.
+
+---
+
 ## Edge cases (must not break determinism or layout)
 
 - **EC-1 Fractional qty**: qty `0.5`, unit `199.99` → line price `100.00` (round half-up),
@@ -141,3 +155,10 @@ manually. Each ends in a downloaded PDF.
   baked banner byte-identically — the marks stay inert, so goldens and archived artifacts never
   shift. A malformed/oversized upload is rejected by the #5 storage guards before it can reach
   the render path.
+- **EC-19 Preview must not reload for a non-render reason**: @react-pdf's `PDFViewer` re-renders
+  whenever the *identity* of the element it is handed changes, which revokes the blob URL, rewrites
+  the iframe `src` and reloads the document — visibly a blank flash plus a lost reading position.
+  So the element is memoized on `input` and the viewer subtree is skipped while `input` is unchanged
+  (FR-7.5). The trade-off is that the preview only ever refreshes with real data changes; it must
+  never be memoized on something coarser (a frozen preview is the same bug in the other direction).
+  Export buttons are unaffected: each builds its own fresh blob on click.
