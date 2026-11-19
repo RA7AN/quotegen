@@ -7,6 +7,12 @@
  * a reopened PDF is byte-identical to the original (AC-6/EC-14). Reads are session-
  * scoped; a 401 degrades to a "sign in" prompt (no native alert — AC-9) rather than a
  * crash, and a per-row render failure only sets an inline notice.
+ *
+ * #49 row anatomy: at 390 px the old row was three `px-3 py-1 text-xs` buttons (Open 56×26,
+ * Download 81×26, Remove 71×26) with the row itself inert — the obvious tap target did
+ * nothing. The document title is now the whole-row primary control (48 px, opens the PDF) and
+ * the two secondary actions are 44 px buttons underneath, so a thumb aims at one big target
+ * instead of three 26 px slivers.
  */
 
 'use client';
@@ -150,45 +156,49 @@ export function RecentDocuments() {
         )
       ) : (
         <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200">
-          {items.map((d) => (
-            <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">
-                  {d.number || 'Untitled'}
-                  {d.clientName ? ` · ${d.clientName}` : ''}
-                </p>
-                <p className="text-xs text-muted">
-                  {d.kind === 'proforma' ? 'Proforma' : 'Quotation'} · {d.createdAt.slice(0, 10)}
-                </p>
-              </div>
-              <div className="flex gap-2">
+          {items.map((d) => {
+            const title = `${d.number || 'Untitled'}${d.clientName ? ` · ${d.clientName}` : ''}`;
+            return (
+              <li key={d.id} className="px-2 py-2 sm:px-4 sm:py-3">
                 <button
                   type="button"
                   disabled={busyId === d.id}
                   onClick={() => void open(d.id)}
-                  className="rounded border border-neutral-400 px-3 py-1 text-xs disabled:opacity-50"
+                  aria-label={`Open ${title}`}
+                  className="flex min-h-[3rem] w-full items-center justify-between gap-3 rounded text-left disabled:opacity-50"
                 >
-                  Open
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-medium">{d.number || 'Untitled'}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {d.kind === 'proforma' ? 'Proforma' : 'Quotation'} · {d.createdAt.slice(0, 10)}
+                      {d.clientName ? ` · ${d.clientName}` : ''}
+                    </span>
+                  </span>
+                  <span aria-hidden="true" className="shrink-0 text-lg text-muted">
+                    ›
+                  </span>
                 </button>
-                <button
-                  type="button"
-                  disabled={busyId === d.id}
-                  onClick={() => void download(d.id)}
-                  className="rounded bg-black px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
-                >
-                  {busyId === d.id ? 'Rendering…' : 'Download'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === d.id}
-                  onClick={() => setPendingDelete(d)}
-                  className="rounded border border-red-300 px-3 py-1 text-xs text-red-700 disabled:opacity-50"
-                >
-                  Remove
-                </button>
-              </div>
-            </li>
-          ))}
+                <div className="mt-1 flex gap-3">
+                  <button
+                    type="button"
+                    disabled={busyId === d.id}
+                    onClick={() => void download(d.id)}
+                    className="min-h-[2.75rem] rounded bg-black px-4 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    {busyId === d.id ? 'Rendering…' : 'Download'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyId === d.id}
+                    onClick={() => setPendingDelete(d)}
+                    className="min-h-[2.75rem] rounded border border-red-300 px-4 text-sm text-red-700 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

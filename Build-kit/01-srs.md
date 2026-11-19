@@ -186,3 +186,17 @@ step-by-step happy paths (HP-1…HP-4) and edge cases (EC-1…).
 - NFR-3 Works fully client-side; the deployed Vercel app serves static/SSR pages only.
 - NFR-4 Accessible: labelled inputs, keyboard-navigable wizard, `aria-current` on steps.
 - NFR-5 No PII leaves the browser (everything is localStorage); no analytics in v1.
+- NFR-6 **Phone browser is the primary device.** Every primary flow (sign in, wizard, save/export,
+  lists, settings) must be usable in a 360–430 px wide viewport:
+  - touch targets ≥ 44 × 44 px for anything in the app chrome, a list row or a dialog;
+  - no horizontal overflow — `documentElement.scrollWidth` equals the layout viewport width;
+  - overlays are bottom sheets on phones, capped at 80 svh and scrollable inside themselves, with the
+    background page scroll-locked and Tab focus trapped; the safe (non-destructive) action holds
+    initial focus;
+  - navigation survives without a wrapping header row (fixed bottom tab bar, `aria-current="page"`),
+    and chrome clears the device safe area (`viewport-fit=cover` + `env(safe-area-inset-*)`);
+  - no viewport-sourced zoom on focus and no font scaling that breaks layout
+    (`text-size-adjust: 100%`, pinch-zoom stays enabled);
+  - viewport-relative heights use `dvh`/`svh`, never `100vh` (the mobile *large* viewport counts the
+    URL bar, which guarantees phantom scroll).
+  Measured with the 390 × 844 audit harness; see AC-29…AC-31 and HP-9/EC-20. (Added for issue #49.)

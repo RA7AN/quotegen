@@ -21,8 +21,9 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/auth/session', () => ({ getSessionUser }));
 vi.mock('@/db/profiles', () => ({ isSetupComplete }));
-// Keep the client nav chrome out of a server-component unit test.
+// Keep the client nav chrome out of a server-component unit test (#49: band menu + bottom bar).
 vi.mock('./account-menu', () => ({ AccountMenu: () => null }));
+vi.mock('./tab-bar', () => ({ TabBar: () => null }));
 
 const AppLayout = (await import('./layout')).default;
 

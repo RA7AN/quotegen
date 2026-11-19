@@ -99,8 +99,9 @@ describe('RecentDocuments re-render flows', () => {
   it('Open re-renders and pops the blob URL in a new tab', async () => {
     stubFetch({ ok: true, items: [ROW] });
     render(<RecentDocuments />);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Open' })).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    // #49: the whole row is the Open control, so its accessible name is "Open <title>".
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Open / })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /^Open / }));
     await waitFor(() => expect(window.open).toHaveBeenCalledWith('blob:rendered', '_blank', 'noopener'));
   });
 });

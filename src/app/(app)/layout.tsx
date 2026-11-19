@@ -7,9 +7,12 @@
  * (rather than baking a prerendered signed-out HTML snapshot), which is what we want for
  * a serverful deploy where auth creds are set per-environment.
  *
- * The chrome below is the "app nav" (Home / New quote / Quotes / Drafts / Recent /
- * Settings + Sign out). It replaces what used to live on the root layout, so marketing
- * and auth routes keep their own quieter headers.
+ * The chrome below is the "app nav" (#49). Six `text-xs uppercase` links in the band wrapped
+ * the header to 128 px — 15 % of a 390 × 844 viewport — with every link 16 px tall, so the
+ * destinations moved to a fixed bottom tab bar (Home / New quote / Quotes / More) and the band
+ * keeps only the brand and the ☰ account menu, one row, 56 px. The band is deliberately NOT
+ * sticky: the tab bar is the persistent nav, and a sticky header would keep stealing the
+ * vertical space the audit flagged on the wizard and `/settings`. Routes are unchanged.
  */
 
 import Link from 'next/link';
@@ -18,15 +21,7 @@ import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/auth/session';
 import { isSetupComplete } from '@/db/profiles';
 import { AccountMenu } from './account-menu';
-
-const NAV: ReadonlyArray<{ href: string; label: string }> = [
-  { href: '/home', label: 'Home' },
-  { href: '/new', label: 'New quote' },
-  { href: '/quotes', label: 'Quotes' },
-  { href: '/drafts', label: 'Drafts' },
-  { href: '/recent', label: 'Recent' },
-  { href: '/settings', label: 'Settings' },
-];
+import { TabBar } from './tab-bar';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Always call headers() so this layout opts into per-request rendering even before
@@ -44,23 +39,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       {/* The band uses the non-inverting brand tokens: it stays black/gold in dark mode. */}
-      <header className="border-b-4 border-gold bg-band px-4 py-3 text-band-ink">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2">
-          <Link href="/home" className="text-sm font-bold uppercase tracking-widest">
+      <header className="border-b-4 border-gold bg-band px-4 text-band-ink">
+        <div className="mx-auto flex h-[3.25rem] max-w-5xl items-center justify-between">
+          <Link
+            href="/home"
+            className="flex min-h-[2.75rem] items-center text-sm font-bold uppercase tracking-widest"
+          >
             Quotegen
           </Link>
-          <nav aria-label="Primary" className="relative flex flex-wrap items-center gap-4 text-xs uppercase tracking-wide">
-            {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="hover:text-gold-light">
-                {n.label}
-              </Link>
-            ))}
-            {/* Email + theme + sign-out are collapsed behind one ☰ account menu. */}
+          {/* Email + theme + sign-out stay collapsed behind one ☰ account menu. */}
+          <nav aria-label="Account" className="flex items-center">
             <AccountMenu email={user.email} />
           </nav>
         </div>
       </header>
-      {children}
+      {/* Bottom clearance for the fixed tab bar (+ its safe-area inset). */}
+      <div className="pb-[calc(4rem+env(safe-area-inset-bottom))]">{children}</div>
+      <TabBar />
     </>
   );
 }

@@ -65,7 +65,8 @@ function DashboardCard({
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted">{title}</h2>
         <p className="mt-1 text-xs text-muted">{body}</p>
       </div>
-      <Link href={href} className={`${cta} mt-4 self-start`}>
+      {/* #49: `inline-flex min-h-[2.75rem]` — the CTA measured 85×36 on a phone. */}
+      <Link href={href} className={`${cta} mt-4 inline-flex min-h-[2.75rem] items-center self-start`}>
         Open →
       </Link>
     </div>

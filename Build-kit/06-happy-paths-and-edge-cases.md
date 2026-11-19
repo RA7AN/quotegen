@@ -110,6 +110,32 @@ manually. Each ends in a downloaded PDF.
 
 ---
 
+## HP-9 — One-handed session on a phone browser (#49, NFR-6)
+
+Run at a 390 × 844 layout viewport; every figure below is a measured `getBoundingClientRect()`.
+
+1. Open `/home` signed in. The brand band is **one row, 56 px** (brand link + ☰ only) and navigation
+   lives in a fixed **bottom tab bar**: `Home · New quote · Quotes · More`, four 98 × 52 tabs, the
+   current route marked `aria-current="page"`. Nothing scrolls sideways (`scrollWidth === 390`) and no
+   page content hides behind the bar (the layout reserves `4rem + env(safe-area-inset-bottom)`).
+2. Tap ☰: the account panel opens **fully inside the viewport** (measured x 134 → right 374), with 44 px
+   rows for the theme switch and Sign out. An outside `pointerdown`, Escape, or a rotation/resize all
+   close it.
+3. Tap **More**: a bottom sheet lists Drafts / Recent / Settings on 48 px rows, capped at 80 svh; it
+   closes on selection, on Close, on Escape and on the route change itself.
+4. In any list (`/quotes`, `/drafts`, `/recent`), tap the **row body** — the whole title row is the Open
+   control — and use the 44 px Duplicate / Download / Remove actions beneath it.
+5. Tap **Delete** on a saved quote: a **bottom sheet** rises from the bottom edge (bottom = 844),
+   44 px buttons 12 px apart, **Cancel focused** (never Delete), the page behind locked. It names the
+   record: “Red Sea Hotel — ENCM-26-6824” will be removed… Cancel/Escape keeps the snapshot and returns
+   focus to the row control; only an explicit Delete removes it.
+6. A toast appears **above the tab bar**, full width on a phone, with a 44 px dismiss, and the stack caps
+   at two with a “+N more” disclosure — it never sits on top of a primary action.
+7. Export as usual (HP-1 step 5 onward): the PDF is byte-identical to the desktop run — none of the chrome
+   above reaches the render path (AC-2/AC-19).
+
+---
+
 ## Edge cases (must not break determinism or layout)
 
 - **EC-1 Fractional qty**: qty `0.5`, unit `199.99` → line price `100.00` (round half-up),
@@ -162,3 +188,13 @@ manually. Each ends in a downloaded PDF.
   (FR-7.5). The trade-off is that the preview only ever refreshes with real data changes; it must
   never be memoized on something coarser (a frozen preview is the same bug in the other direction).
   Export buttons are unaffected: each builds its own fresh blob on click.
+- **EC-20 An overlay must hand the page back (#49)**: every sheet/dialog locks background scrolling and
+  traps Tab by mutating `document.body` and adding capture-phase listeners, so a leak is permanent damage:
+  the page stays unscrollable or keys keep being swallowed after the overlay is gone. The shared
+  `src/ui/modal.tsx` therefore restores the **previous inline** `overflow`/`overscrollBehavior` values (not
+  blank strings — a page may already have set them) and refocuses the trigger only if it is still in the
+  document, on every unmount path including a route change that drops the tree. Conversely the tab bar and
+  its More sheet live in the layout, so a sheet that does not observe `usePathname` survives navigation
+  stuck open over the new screen. A centred `fixed` box is also unsafe here: when the on-screen keyboard
+  shrinks the visual viewport it can drift out of reach, which is why overlays are bottom-anchored and
+  sized in `svh` with their own internal scroll.

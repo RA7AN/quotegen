@@ -76,3 +76,47 @@ body {
   color: var(--color-ink);
   font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
+
+/*
+ * Phone hardening (#49). Fluid widths were already fine at 390 px — everything the audit
+ * measured failing was touch behaviour, so this is the small set of rules a mobile browser
+ * needs that a desktop-built stylesheet never asks for:
+ *
+ *  - `text-size-adjust`: iOS inflates font sizes of its own accord after a pinch/zoom, so
+ *    copy silently stops matching the type scale (and the PDF-fidelity rules in 03 §2).
+ *  - `touch-action: manipulation`: without it every tap waits out the double-tap-to-zoom
+ *    delay, which reads as an unresponsive control.
+ *  - `overscroll-behavior: contain` on sheet scrollers: a flick inside an open dialog must
+ *    not drag the page behind it (useModal's JS lock covers the body; this covers the
+ *    nested `overflow-y-auto` panel).
+ *  - `@media (hover: none)`: nothing on a phone ever shows a hover state, so :active is the
+ *    only press feedback channel — make it visible rather than leaving taps unacknowledged.
+ */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+a,
+button,
+summary,
+[role='button'],
+input[type='checkbox'],
+input[type='radio'],
+input[type='file'],
+label {
+  touch-action: manipulation;
+}
+
+[role='dialog'],
+[role='alertdialog'] {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (hover: none) {
+  a:active,
+  button:active {
+    opacity: 0.65;
+  }
+}
