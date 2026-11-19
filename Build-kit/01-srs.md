@@ -113,6 +113,11 @@ IDs are stable and referenced by the acceptance criteria (05) and eval plan (07)
   AC-24/28), and the placed mark keeps its intrinsic aspect (contain, never stretched). With no
   upload the baked banner renders unchanged, so the HP goldens stay 0 px (AC-6/EC-14); resetting a
   mark reverts the PDF to the baked banner.
+- FR-5.7 Product identity in the browser (#47): the app serves its own icon (a gold `Q` monogram on the
+  brand black, from `--color-gold-light`) as the tab favicon and home-screen icon, using the App
+  Router file convention (`src/app/icon.svg` + `icon.png` + `apple-icon.png`) so the link tags are
+  emitted from the root layout without hand-written HTML. This is the *product's* mark and is
+  deliberately separate from FR-5.5/5.6: it never enters the PDF and is not user-editable.
 
 ### FR-6 Drafts & saved quotes
 - FR-6.1 Autosave the in-progress wizard to `localStorage` on every change (debounced);
@@ -134,6 +139,11 @@ IDs are stable and referenced by the acceptance criteria (05) and eval plan (07)
     (`PROFORMA INVOICE  5799-00 .pdf`), normalised to a single space and trimmed.
 - FR-7.4 Export is client-side (no server round-trip), so it works on Vercel with no
   native binaries.
+- FR-7.5 Preview stability (#46): the Step-4 review preview renders the same document as the
+  export path and must keep the loaded artifact — and the reader's position inside it — while unrelated UI
+  state changes (typing in the export panel, a toast auto-dismissing, an export spinner flipping).
+  The PDF re-renders only when the render input actually changes, so the viewer never reloads to
+  page 1 mid-read.
 
 ### FR-8 Determinism & safety
 - FR-8.1 Every user-controllable string is HTML/PDF-escaped before rendering

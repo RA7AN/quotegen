@@ -7,11 +7,30 @@
  * Save handlers are owned by the wizard. Share opens the device's native sheet (Web Share
  * Level 2) with the PDF attached; `nativeShare` only tunes the tooltip because the wizard
  * falls back to a Download when the browser can't share files.
+ *
+ * The viewer is isolated in `PdfPreview` because @react-pdf's `PDFViewer` keys its render
+ * effect on the identity of its `children`: a new element object means a fresh blob URL,
+ * an iframe `src` swap and a full document reload — which reads as the preview blanking
+ * and jumping back to page 1. `buildElement` used to run inline in JSX, so ANY unrelated
+ * wizard re-render (typing in the export panel, a toast auto-dismissing, a draft-save
+ * spinner) restarted the preview the user was reading. Memoizing the element on `input`
+ * plus `memo` on the component means the PDF only re-renders when the document data
+ * actually changes (`input` is memoized upstream in the wizard).
  */
 
+import { memo, useMemo } from 'react';
 import { PDFViewer } from '@react-pdf/renderer';
 import { buildElement } from '@/pdf/index';
 import type { PdfInput } from '@/pdf/input';
+
+const PdfPreview = memo(function PdfPreview({ input }: { input: PdfInput }) {
+  const doc = useMemo(() => buildElement(input), [input]);
+  return (
+    <PDFViewer width="100%" height="900" showToolbar>
+      {doc}
+    </PDFViewer>
+  );
+});
 
 export function Step4Review({
   input,
@@ -89,9 +108,7 @@ export function Step4Review({
 
       <section aria-label="PDF preview" className="min-h-[640px] overflow-hidden rounded border border-neutral-300">
         {/* The preview is the artefact itself — same element, same renderer. */}
-        <PDFViewer width="100%" height="900" showToolbar>
-          {buildElement(input)}
-        </PDFViewer>
+        <PdfPreview input={input} />
       </section>
     </div>
   );
