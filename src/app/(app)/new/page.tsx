@@ -18,8 +18,8 @@ export const metadata: Metadata = { title: 'New quote — Quotegen' };
 export default function NewPage() {
   return (
     <>
-      <div className="mx-auto max-w-5xl px-4 pt-6">
-        <DraftsStrip max={4} title="Your drafts" hrefAll="/drafts" />
+      <div className="mx-auto max-w-5xl px-4 pt-4">
+        <DraftsStrip max={4} title="Your drafts" hrefAll="/drafts" collapsible />
       </div>
       <Suspense fallback={null}>
         <Wizard />

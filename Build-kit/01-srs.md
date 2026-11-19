@@ -198,5 +198,11 @@ step-by-step happy paths (HP-1…HP-4) and edge cases (EC-1…).
   - no viewport-sourced zoom on focus and no font scaling that breaks layout
     (`text-size-adjust: 100%`, pinch-zoom stays enabled);
   - viewport-relative heights use `dvh`/`svh`, never `100vh` (the mobile *large* viewport counts the
-    URL bar, which guarantees phantom scroll).
-  Measured with the 390 × 844 audit harness; see AC-29…AC-31 and HP-9/EC-20. (Added for issue #49.)
+    URL bar, which guarantees phantom scroll);
+  - **forms (added for #50)**: every text-entry control is ≥ 16 px so focusing never triggers the iOS
+    zoom, and ≥ 44 px tall; the primary action of a long form (wizard Continue, settings Save) stays
+    reachable via a sticky bar, an invalid submit brings the first offending field into view and focuses
+    it, the Step-4 preview fills the viewport rather than a fixed-height iframe, and no delete control
+    sits adjacent to a reorder/insert control.
+  Measured with the 390 × 844 audit harness; see AC-29…AC-34 and HP-9/HP-10, EC-20/EC-21.
+  (Added for issue #49; the forms clause is #50.)

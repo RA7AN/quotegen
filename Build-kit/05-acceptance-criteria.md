@@ -81,7 +81,7 @@ against the reference PDFs.
 - **AC-28** *(FR-8.2)* No `Date.now()`/`Math.random()` in `src/lib`, `src/domain`, `src/pdf`
   (grep gate), so outputs are time-independent except explicit date fields.
 
-## G. Phone ergonomics (NFR-6, added for #49)
+## G. Phone ergonomics (NFR-6, added for #49; extended for #50)
 
 Measured at a **390 × 844** layout viewport (iPhone 12/13/14 class). jsdom cannot lay out CSS, so
 this section is split three ways: behaviour in jsdom suites, geometry in a static source gate, and
@@ -107,6 +107,37 @@ with `getBoundingClientRect()`), re-run before merge and recorded on the PR.
   The same gate file pins the viewport contract mechanically: `viewport-fit=cover` emitted,
   `dvh`/`svh` instead of `100vh` in every shell, `text-size-adjust: 100%`,
   `touch-action: manipulation` on controls, pinch-zoom left enabled.
+
+The next three are the **forms half** of the same audit (#50) — the wizard, auth and settings inputs,
+not the app chrome AC-29…AC-31 cover. They are split the same three ways: behaviour in jsdom,
+font-size / sticky / control-size facts in a static source gate (`src/wizard/forms-mobile.test.ts`,
+which parses each `<input>`/`<textarea>`/`<select>` and fails if any carries a sub-16 px class), and the
+pixel numbers in the phone harness.
+
+- **AC-32** *(auto, NFR-6)* Focusing any field leaves the viewport at `scale === 1`: the shared
+  `inputClass` token is `text-base` (`≥ 16 px`) + `min-h-[2.75rem]` (`≥ 44 px`), and **every** text-entry
+  control inherits it or sets its own `text-base` — no `<input>`/`<textarea>`/`<select>` may carry
+  `text-xs`/`text-sm`. Numeric/telephone fields set an `inputMode` so phones raise the right keypad.
+  Labels, hints and inline errors stay small (they are never focused).
+- **AC-33** *(auto + human, NFR-6)* The form itself is thumb-safe: the four step chips live on ONE
+  non-wrapping, horizontally scrollable row (`≤ 48 px`) with the full step label preserved in the
+  accessible name and a `title` explaining a locked chip; the `/new` drafts grid collapses behind a
+  disclosure so the first field sits near the top; Back / Save draft / Continue are in a **sticky** bar
+  docked above the tab bar at every scroll position of every step; an invalid Continue scrolls to and
+  focuses the first `[aria-invalid]` field and reports how many need attention; status/filename text is
+  never truncated; every row/picker control (line ↑↓/✕, clause reorder/insert, saved-library pick/remove,
+  auth submit) is `≥ 44 px` with `≥ 8 px` gaps and a destructive action is never adjacent to a
+  reorder/insert control. Pinned by `forms-mobile.test.ts` + `wizard.test.tsx`, `line-item-editor.test.tsx`,
+  `fields.test.tsx`, `profile-picker.test.tsx`.
+- **AC-34** *(auto + human, NFR-6)* The review step is legible and the settings column is traversable on
+  a phone: the Step-4 preview is sized in `svh` (not a fixed `900 px` iframe) and a full-screen toggle
+  resizes the **same single** `PDFViewer` instance (the memo stability of EC-19 must not be broken by a
+  second mount), with the export controls overlaid so they never scroll away; Print opens its tab
+  synchronously inside the click (falling back to a download when blocked) rather than silently no-oping;
+  and `/settings` sections collapse behind disclosures under a sticky, dirty-aware **Save** bar reachable
+  from the bottom, with uploads triggered by a 44 px label (the real `input[type=file]` stays `sr-only`,
+  keeping the `getByLabelText` contract). Pinned by `forms-mobile.test.ts` + `step4-review.test.tsx`,
+  `settings-view.test.tsx`.
 
 ## Sign-off rule
 

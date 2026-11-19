@@ -60,17 +60,23 @@ export function LineItemEditor({
     if (v !== null) onChange({ unitPriceHalalas: v });
   };
 
+  const btn =
+    'inline-flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded border text-sm disabled:opacity-30';
+
   return (
     <div className="rounded border border-neutral-200 bg-white p-3">
-      <div className="mb-2 flex items-center justify-between">
+      {/* #50: ↑ ↓ ✕ were 27×22 px in a 4 px gap with Delete rightmost — the easiest to hit on a
+          phone and the one that destroys a line. Reorder and delete are now 44 px and visually
+          separated by a divider + wider gap (AC-2: no delete adjacent to a reorder control). */}
+      <div className="mb-2 flex items-center justify-between gap-3">
         <span className="text-xs font-bold text-muted">Line {sno}</span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-2">
           <button
             type="button"
             aria-label={`Move line ${sno} up`}
             disabled={isFirst}
             onClick={() => onMove(-1)}
-            className="rounded border border-neutral-300 px-2 py-0.5 text-xs disabled:opacity-30"
+            className={`${btn} border-neutral-300`}
           >
             ↑
           </button>
@@ -79,15 +85,17 @@ export function LineItemEditor({
             aria-label={`Move line ${sno} down`}
             disabled={isLast}
             onClick={() => onMove(1)}
-            className="rounded border border-neutral-300 px-2 py-0.5 text-xs disabled:opacity-30"
+            className={`${btn} border-neutral-300`}
           >
             ↓
           </button>
+        </span>
+        <span className="ml-2 flex items-center gap-3 border-l border-neutral-200 pl-3">
           <button
             type="button"
             aria-label={`Delete line ${sno}`}
             onClick={onDelete}
-            className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-700"
+            className={`${btn} border-red-300 text-red-700`}
           >
             ✕
           </button>
@@ -106,7 +114,7 @@ export function LineItemEditor({
       />
       {error && <p role="alert" className="mt-1 text-xs font-medium text-red-700">{error}</p>}
 
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block text-xs">
           <span className="mb-1 block font-medium">UOM</span>
           <input
@@ -139,7 +147,7 @@ export function LineItemEditor({
           />
           {priceBad && <span role="alert" className="mt-1 block text-red-700">Enter a number, e.g. 1,234.56</span>}
         </label>
-        <label className="flex items-end gap-1.5 text-xs">
+        <label className="flex min-h-[2.75rem] items-end gap-2 text-sm">
           <input
             type="checkbox"
             checked={line.pricing === 'included'}

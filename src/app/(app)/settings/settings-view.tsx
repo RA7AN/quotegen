@@ -72,6 +72,9 @@ export function SettingsView() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('Company profile');
   const [pendingDelete, setPendingDelete] = useState<StoredProfileSummary | null>(null);
+  // #50: the Save control moved into a sticky bottom bar, so it needs a dirty signal. `baseline`
+  // is the JSON snapshot of the last-saved profile; unsaved edits make the current one differ.
+  const [baseline, setBaseline] = useState(() => JSON.stringify(loadProfile(browserKV())));
 
   const patch = (p: Partial<CompanyProfile>) => setProfile((cur) => ({ ...cur, ...p }));
   const patchSig = (p: Partial<CompanyProfile['signatory']>) =>
@@ -90,12 +93,14 @@ export function SettingsView() {
 
   const save = () => {
     persistTo(profile, assets);
+    setBaseline(JSON.stringify(profile));
     setStatus('Profile saved — new documents will use it.');
   };
   const reset = () => {
     const fresh = resetProfile(browserKV());
     setProfile(fresh);
     persistTo(fresh, assets);
+    setBaseline(JSON.stringify(fresh));
     setStatus('Restored the factory Encompass/Elaf profile.');
   };
 
@@ -152,6 +157,7 @@ export function SettingsView() {
     setEditingId(row.id);
     setEditingName(row.name);
     setProfile(row.profile);
+    setBaseline(JSON.stringify(row.profile));
     writeProfile(browserKV(), row.profile);
     writeAsset(browserKV(), 'headerMark', row.assets.headerMark);
     writeAsset(browserKV(), 'footerMark', row.assets.footerMark);
@@ -220,6 +226,7 @@ export function SettingsView() {
       if (!alive) return;
       if (server) {
         setProfile(server.profile);
+        setBaseline(JSON.stringify(server.profile));
         writeProfile(browserKV(), server.profile);
         writeAsset(browserKV(), 'headerMark', server.assets.headerMark);
         writeAsset(browserKV(), 'footerMark', server.assets.footerMark);
@@ -255,19 +262,11 @@ export function SettingsView() {
     return () => clearTimeout(t);
   }, [status]);
 
+  const dirty = JSON.stringify(profile) !== baseline;
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 [&>section:nth-of-type(even)]:bg-neutral-100">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Company profile</h1>
-        <div className="flex gap-2">
-          <button type="button" onClick={reset} className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-3 text-sm hover:bg-neutral-100">
-            Reset to factory defaults
-          </button>
-          <button type="button" onClick={save} className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-4 text-sm font-semibold text-white hover:bg-neutral-800">
-            Save
-          </button>
-        </div>
-      </div>
+      <h1 className="text-xl font-bold">Company profile</h1>
       {status && <p className="sr-only" role="status" aria-live="polite">{status}</p>}
 
       <p className="text-sm text-muted">
@@ -292,7 +291,7 @@ export function SettingsView() {
             type="text"
             value={editingName}
             onChange={(e) => setEditingName(e.target.value)}
-            className="mt-1 w-full max-w-sm rounded border border-neutral-300 px-2 py-1 text-sm"
+            className="mt-1 w-full max-w-sm rounded border border-neutral-300 px-3 py-2 text-base"
           />
         </label>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -361,13 +360,13 @@ export function SettingsView() {
         )}
       </div>
 
-      <IdentitySection profile={profile} patch={patch} />
+      <IdentitySection profile={profile} patch={patch} collapsible />
 
-      <ContactSection profile={profile} patch={patch} />
+      <ContactSection profile={profile} patch={patch} collapsible />
 
-      <BankSection profile={profile} patch={patch} />
+      <BankSection profile={profile} patch={patch} collapsible />
 
-      <SignatorySection profile={profile} patchSig={patchSig} />
+      <SignatorySection profile={profile} patchSig={patchSig} collapsible />
 
       <BrandMarksSection
         profile={profile}
@@ -375,7 +374,25 @@ export function SettingsView() {
         assetError={assetError}
         onPick={(kind, file) => void pickAsset(kind, file)}
         onReset={resetAssetUi}
+        collapsible
       />
+
+      {/* #50: Save used to live only at doc-y 161 of a 2 640 px page — editing the sign-off
+          block or brand marks meant scrolling ~2 400 px back up. This bar sticks above the
+          tab bar and carries the dirty state. */}
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur">
+        <span className="text-sm text-muted" role="status" aria-live="polite">
+          {dirty ? '● Unsaved changes' : 'All changes saved'}
+        </span>
+        <span className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={reset} className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-3 text-sm hover:bg-neutral-100">
+            Reset to factory defaults
+          </button>
+          <button type="button" onClick={save} className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-4 text-sm font-semibold text-white hover:bg-neutral-800">
+            Save
+          </button>
+        </span>
+      </div>
 
       {status && (
         <FloatingToastStack>

@@ -43,7 +43,7 @@ export function ProfilePicker({
         {profiles.map((p) => {
           const inUse = p.id === currentId;
           return (
-            <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-medium">{p.name || '(unnamed)'}</span>
                 {p.isDefault ? <span className="ml-1 rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">Default</span> : null}
@@ -54,7 +54,7 @@ export function ProfilePicker({
                 <button
                   type="button"
                   onClick={() => onUse(p.id)}
-                  className="rounded bg-black px-2.5 py-1 text-xs font-medium text-white hover:bg-neutral-800"
+                  className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-3 text-sm font-medium text-white hover:bg-neutral-800"
                 >
                   Use for this quote
                 </button>
@@ -67,7 +67,7 @@ export function ProfilePicker({
         <button
           type="button"
           onClick={onResetToDefault}
-          className="mt-2 text-xs underline text-muted hover:text-black"
+          className="mt-2 inline-flex min-h-[2.75rem] items-center rounded px-2 text-sm underline text-muted hover:text-black"
         >
           Use account default instead
         </button>

@@ -505,7 +505,43 @@ first three boxes.
   (auth submit, onboarding Back/Continue, wizard pickers). An inline prose link (“Run setup again”)
   stays under 44 px by the WCAG 2.5.8 inline exception.
 
-## 23. Sign-off
+## 23. Phone forms: inputs, actions, review & settings `[issue #50 · 01 NFR-6, AC-32…AC-34 · HP-10, EC-21]`
+
+The second half of the #49 audit, run at a 390 × 844 device profile **on a phone if you can** — a real
+iOS Safari is the only place the focus-zoom and the on-screen-keyboard interactions are genuinely
+reproduced; Chromium device emulation covers the geometry. Numbers below are what the branch measured
+in Chromium; the first two boxes are specifically about the device gap.
+
+- ☐ No focus-zoom anywhere: tap into an email/password field on `/sign-in`, then into every wizard input
+  (Cust ID, salutation select, Valid-until date, line Quantity / Unit price, a clause textarea) and a
+  settings field. On iOS the page must **not** rescale — `visualViewport.scale === 1` on focus. The static
+  gate (`forms-mobile.test.ts`) proves no text-entry control carries `text-xs`/`text-sm`; this box proves
+  it on the device. `[AC-32]`
+- ☐ Numeric fields raise the digit keypad (Cust ID / CR No / Quantity / Unit price / split %), not the
+  full qwerty. `[AC-32]`
+- ☐ `/new` starts high: the drafts strip is a single collapsed disclosure and the first Meta field sits
+  near the top of the viewport (was ~y 656 of 844). The step chips are one scrollable row ≤ 48 px; a
+  locked chip’s accessible name still reads the full label and its `title` explains the lock. `[AC-33]`
+- ☐ Sticky Continue + error focus: scroll to the bottom of a long Step 1 and press **Continue** with
+  required fields blank — the bar stayed visible the whole scroll, the viewport jumped to and focused the
+  first invalid field, and a single line reported the count. Nothing hid behind the tab bar. `[AC-33, EC-21]`
+- ☐ Row controls aim-safe: line ↑ ↓ and clause reorder/insert are 44 px, and the ✕ delete is separated
+  behind a divider (not adjacent). Saved-library Use/Remove rows are 44 px. `[AC-33]`
+- ☐ Step 4 review is actually viewable: the preview fills a viewport-relative box (no sideways pan to read
+  a page), **Full screen** grows the *same* preview without a reload/flash or losing page position, and
+  Download / Print / Share / Exit are reachable over it. `[AC-34]`
+- ☐ Print is never a silent no-op: tapping **Print** on a phone opens the PDF in a new tab, or downloads it
+  with a message if the popup was blocked — it does not appear to do nothing. `[AC-34]`
+- ☐ Settings is traversable: sections collapse behind accordions, and **Save** sits in a sticky bottom bar
+  that shows the dirty state (“● Unsaved changes” / “All changes saved”) and is reachable without
+  scrolling 2 640 px back up; the logo upload is a 44 px label trigger (the native file chip is hidden). `[AC-34]`
+- ☐ The PDF is untouched: `eval:pdfs` **26/26** and `eval:golden` **5 pages @ 0 px**, no re-baseline. `[AC-2, AC-6]`
+- ☐ Tests: static gate `forms-mobile.test.ts` (18) plus the existing jsdom contracts
+  (`wizard`, `line-item-editor`, `fields`, `profile-picker`, `step4-review`, `settings-view`) all green;
+  `chrome-mobile.test.ts` (17) still passes unchanged (the shared `4rem` bottom anchor was reused, not
+  moved). `[AC-32, AC-33, AC-34]`
+
+## 24. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -531,6 +567,7 @@ first three boxes.
 | 20 Brand mark in header/footer banner | | |
 | 21 Preview stability + product icon | | |
 | 22 Phone chrome (nav, dialogs, toasts, lists) | | |
+| 23 Phone forms (inputs, actions, review, settings) | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

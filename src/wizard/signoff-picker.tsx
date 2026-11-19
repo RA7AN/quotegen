@@ -36,16 +36,16 @@ export function SignoffPicker({
         </summary>
         <ul className="mt-2 space-y-1">
           {blocks.map((b) => (
-            <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-medium">{b.label || b.data.name || '(unnamed)'}</span>
                 {b.data.email ? <span className="ml-1 text-xs text-muted">· {b.data.email}</span> : null}
               </span>
-              <span className="flex gap-2">
+              <span className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => onPick(b.data)}
-                  className="rounded bg-black px-2.5 py-1 text-xs font-medium text-white hover:bg-neutral-800"
+                  className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-3 text-sm font-medium text-white hover:bg-neutral-800"
                 >
                   Use
                 </button>
@@ -53,7 +53,7 @@ export function SignoffPicker({
                   type="button"
                   onClick={() => setPending(b)}
                   aria-label={`Remove saved sign-off block ${b.label || b.id}`}
-                  className="rounded border border-red-300 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50"
+                  className="inline-flex min-h-[2.75rem] items-center rounded border border-red-300 px-3 text-sm text-red-700 hover:bg-red-50"
                 >
                   Remove
                 </button>

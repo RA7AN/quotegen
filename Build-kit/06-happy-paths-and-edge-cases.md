@@ -136,6 +136,27 @@ Run at a 390 × 844 layout viewport; every figure below is a measured `getBoundi
 
 ---
 
+## HP-10 — Filling the wizard one-handed on a phone (#50, NFR-6)
+
+The forms half of the #49 audit, run at 390 × 844. Continues from HP-9 (the chrome is already thumb-safe).
+
+1. Tap **New quote**: the drafts strip is one collapsed line, so the first Meta field lands near the top
+   of the screen (not 78 % of the way down). The four step chips are a single short-label row ≤ 48 px; a
+   locked chip reads normally to a screen reader (`“2. Line items & commercials”`) and its `title` explains
+   why it is disabled.
+2. Tap into any input — Cust ID, the salutation select, a date: the page does **not** zoom
+   (`visualViewport.scale === 1`, every field is ≥ 16 px), and numeric fields raise the digit keypad.
+3. Press **Continue** with a required field blank: the viewport jumps to and focuses the first invalid
+   field and a one-line count says how many need attention; **Back / Save draft / Continue** stayed glued
+   above the tab bar the whole way down the ~2 000 px form.
+4. On Step 2, reorder a line with the ↑ ↓ 44 px arrows; the ✕ delete sits apart from them behind a divider
+   (never one mis-tap away). Tap **Full screen** on Step 4: the SAME preview grows to the whole viewport
+   (no reload / no lost page position, per EC-19) with Download / Print / Share overlaid; **Print** opens
+   the PDF in a new tab (or downloads if the popup was blocked) rather than doing nothing.
+5. Save / export as in HP-9 step 7: the bytes are unchanged — none of this reaches `src/pdf`.
+
+---
+
 ## Edge cases (must not break determinism or layout)
 
 - **EC-1 Fractional qty**: qty `0.5`, unit `199.99` → line price `100.00` (round half-up),
@@ -198,3 +219,11 @@ Run at a 390 × 844 layout viewport; every figure below is a measured `getBoundi
   stuck open over the new screen. A centred `fixed` box is also unsafe here: when the on-screen keyboard
   shrinks the visual viewport it can drift out of reach, which is why overlays are bottom-anchored and
   sized in `svh` with their own internal scroll.
+- **EC-21 A form action must never vanish off-screen (#50)**: a long wizard step (Step 1 runs ~2 000 px on
+  a phone) makes a statically-positioned Continue button, or the inline errors it is supposed to reveal,
+  unreachable from wherever the thumb already is — the tap looks dead and the validation looks broken. So
+  Back / Save / Continue live in a bar `sticky` to the tab-bar anchor (the same `4rem + env(safe-area-inset-bottom)`
+  the toasts use, so neither buries the other) and, on a blocked forward step, the first `[aria-invalid]`
+  field is scrolled into view and focused after the errors commit. The corollary is the iOS focus-zoom trap:
+  a single sub-16 px field silently rescales the whole page on focus, shifting the layout under the user,
+  which is why the `text-base` rule is a static gate rather than left to chance.
