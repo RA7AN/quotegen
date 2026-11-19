@@ -5,6 +5,9 @@
  * visitor back to the public landing at `/` and refreshes so the server components see
  * the new (absent) session. No ConfirmDialog: sign-out is a plain, safe action with no
  * data loss, and AC-9 concerns are about alert()/confirm() only.
+ *
+ * #49: both variants are 44 px tall. The compact one only ever appeared in the onboarding
+ * band, where it measured 82×26 — a 26 px target for the action that ends the session.
  */
 
 'use client';
@@ -35,8 +38,8 @@ export function SignOutButton({ menuItem = false }: { menuItem?: boolean }) {
       disabled={busy}
       className={
         menuItem
-          ? 'w-full rounded px-2 py-1.5 text-left text-sm text-red-700 hover:bg-red-50 disabled:opacity-60'
-          : 'rounded border border-band-ink/30 px-2.5 py-1 text-xs uppercase tracking-wide text-band-ink hover:border-gold-light hover:text-gold-light disabled:opacity-60'
+          ? 'flex min-h-[2.75rem] w-full items-center rounded px-3 text-left text-base sm:text-sm text-red-700 hover:bg-red-50 disabled:opacity-60'
+          : 'inline-flex min-h-[2.75rem] items-center rounded border border-band-ink/30 px-3 text-xs uppercase tracking-wide text-band-ink hover:border-gold-light hover:text-gold-light disabled:opacity-60'
       }
     >
       {busy ? 'Signing out…' : 'Sign out'}

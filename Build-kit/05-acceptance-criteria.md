@@ -81,6 +81,33 @@ against the reference PDFs.
 - **AC-28** *(FR-8.2)* No `Date.now()`/`Math.random()` in `src/lib`, `src/domain`, `src/pdf`
   (grep gate), so outputs are time-independent except explicit date fields.
 
+## G. Phone ergonomics (NFR-6, added for #49)
+
+Measured at a **390 × 844** layout viewport (iPhone 12/13/14 class). jsdom cannot lay out CSS, so
+this section is split three ways: behaviour in jsdom suites, geometry in a static source gate, and
+the pixel numbers themselves in the manual phone audit harness (a same-origin 390 px iframe, driven
+with `getBoundingClientRect()`), re-run before merge and recorded on the PR.
+
+- **AC-29** *(auto, NFR-6)* App chrome and overlays are thumb-safe: the header is ONE row ≤ 60 px
+  with no wrapped nav; navigation lives in a fixed bottom tab bar (`Home · New quote · Quotes · More`,
+  active route via `aria-current="page"`) that clears `env(safe-area-inset-bottom)`; the account panel
+  opens fully inside the viewport and dismisses on an outside `pointerdown`, Escape and `resize`;
+  every interactive control in chrome, a list row or a dialog is ≥ 44 × 44 px. Pinned by
+  `src/app/(app)/chrome-mobile.test.ts` (static gate) plus `confirm-dialog.test.tsx`,
+  `tab-bar.test.tsx`, `account-menu.test.tsx`, `quotes-view.test.tsx` (jsdom).
+- **AC-30** *(auto, NFR-6)* Overlays never lose their actions and never scroll the page behind them:
+  confirm dialogs render as a **bottom sheet** on phones (`items-end`, centred only from `sm:`),
+  `max-h-[80svh]` with `overflow-y-auto`, 44 px buttons ≥ 12 px apart, **safe/cancel action focused by
+  default**, background `overflow: hidden` + `overscroll-behavior: contain`, Tab trapped inside the
+  panel and focus returned to the trigger on close (shared `src/ui/modal.tsx`). Toast stack sits full
+  width above the tab bar with a 44 px dismiss and a capped stack.
+- **AC-31** *(human, NFR-6 / FR-8)* No single-tap data loss anywhere: every destructive action in every
+  list (`/quotes`, `/drafts`, `/recent`, the saved-profile library, wizard clauses) asks first and
+  **names the record** it is about to remove, and no `window.confirm`/`alert` is used (AC-9).
+  The same gate file pins the viewport contract mechanically: `viewport-fit=cover` emitted,
+  `dvh`/`svh` instead of `100vh` in every shell, `text-size-adjust: 100%`,
+  `touch-action: manipulation` on controls, pinch-zoom left enabled.
+
 ## Sign-off rule
 
 The build is accepted when **all `(auto)` criteria pass in CI** and a human reviewer marks

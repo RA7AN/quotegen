@@ -35,14 +35,15 @@ export function ThemeToggle({ inMenu = false }: { inMenu?: boolean }) {
   };
 
   // Inside the account dropdown it reads as a plain menu row naming the mode the
-  // click switches TO; in the nav band it stays the compact ☀/☾ icon button.
+  // click switches TO (44 px tall for touch, #49); in the nav band it stays the
+  // compact ☀/☾ icon button.
   if (inMenu) {
     return (
       <button
         type="button"
         onClick={toggle}
         aria-pressed={theme === 'dark'}
-        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-black hover:bg-neutral-100"
+        className="flex min-h-[2.75rem] w-full items-center gap-2 rounded px-3 text-left text-base sm:text-sm text-black hover:bg-neutral-100"
       >
         <span aria-hidden="true" className="w-4 text-center">{theme === 'dark' ? '☀' : '☾'}</span>
         {theme === 'dark' ? 'Light mode' : 'Dark mode'}

@@ -150,7 +150,7 @@ export function BrandMarksSection({
         <button
           type="button"
           onClick={onReset}
-          className="rounded border border-neutral-400 px-3 py-1 text-xs hover:bg-neutral-100"
+          className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-3 text-xs hover:bg-neutral-100"
         >
           Reset to bundled crops
         </button>

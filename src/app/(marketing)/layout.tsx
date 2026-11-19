@@ -6,6 +6,10 @@
  * CTA pair (Sign in / Create account) instead of the app nav. The wordmark is a link
  * home so a signed-in visitor who lands here can navigate back without hitting
  * browser-back.
+ *
+ * #49: the band is a fixed one-row 56 px bar and both CTAs are 44 px tall — the audit found
+ * `Sign in` rendering as a 16 px-tall text link at phone width, far under the tap-target
+ * standard the app already follows elsewhere.
  */
 
 import Link from 'next/link';
@@ -13,18 +17,18 @@ import Link from 'next/link';
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <header className="border-b-4 border-gold bg-band px-4 py-3 text-band-ink">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link href="/" className="text-sm font-bold uppercase tracking-widest">
+      <header className="border-b-4 border-gold bg-band px-4 text-band-ink">
+        <div className="mx-auto flex h-[3.25rem] max-w-5xl items-center justify-between">
+          <Link href="/" className="flex min-h-[2.75rem] items-center text-sm font-bold uppercase tracking-widest">
             Quotegen
           </Link>
-          <nav aria-label="Primary" className="flex items-center gap-4 text-xs uppercase tracking-wide">
-            <Link href="/sign-in" className="hover:text-gold-light">
+          <nav aria-label="Primary" className="flex items-center gap-2 text-xs uppercase tracking-wide">
+            <Link href="/sign-in" className="flex min-h-[2.75rem] items-center px-2 hover:text-gold-light">
               Sign in
             </Link>
             <Link
               href="/sign-up"
-              className="rounded bg-band-ink px-3 py-1.5 font-semibold text-band hover:bg-gold-light hover:text-band"
+              className="inline-flex min-h-[2.75rem] items-center rounded bg-band-ink px-4 font-semibold text-band hover:bg-gold-light hover:text-band"
             >
               Create account
             </Link>

@@ -5,7 +5,7 @@
  * wrapped in a real <label htmlFor> for NFR-4 accessibility.
  */
 
-import { useId, useRef, useState } from 'react';
+import { Children, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 /* ------------------------------------------------------------------ *
@@ -61,7 +61,7 @@ export function SectionCard({
 }
 
 /* ------------------------------------------------------------------ *
- * FloatingToast — fixed-position bottom-right notification stack.     *
+ * FloatingToast — fixed-position notification stack.                  *
  * ------------------------------------------------------------------ */
 
 /**
@@ -87,26 +87,50 @@ export function FloatingToast({
     <div
       role="status"
       aria-live="polite"
-      className={`pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg ${cls}`}
+      className={`pointer-events-auto flex items-start gap-1 rounded-lg border px-4 py-2.5 text-sm shadow-lg ${cls}`}
     >
       <span className="flex-1">{message}</span>
+      {/* 44 px hit area via min-size + negative margins, so the card stays compact (#49:
+          the old × measured 13×18). */}
       <button
         type="button"
         aria-label="Dismiss notification"
         onClick={onDismiss}
-        className="mt-px shrink-0 rounded p-0.5 leading-none opacity-50 hover:opacity-100 focus:opacity-100"
+        className="-my-1 -mr-2 flex min-h-[2.75rem] min-w-[2.75rem] shrink-0 items-center justify-center rounded p-1 text-lg leading-none opacity-50 hover:opacity-100 focus:opacity-100"
       >
-        ×
+        <span aria-hidden="true">×</span>
       </button>
     </div>
   );
 }
 
-/** Fixed bottom-right container for one or more FloatingToast children. */
-export function FloatingToastStack({ children }: { children: ReactNode }) {
+/**
+ * Viewport container for one or more FloatingToast children (#49).
+ *
+ * It used to be `bottom-4 right-4 max-w-xs` — a 319 px card landing exactly on the
+ * bottom-right corner where the wizard's Continue/Download controls live (and where the
+ * fixed tab bar now sits). On phones it goes full-width above the tab bar, with the
+ * safe-area inset added; from `sm:` up it returns to the corner. Stacks are capped at
+ * `max` visible cards with the remainder behind a "+N more" toggle so three toasts can
+ * never cover the screen.
+ */
+export function FloatingToastStack({ children, max = 2 }: { children: ReactNode; max?: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const items = Children.toArray(children);
+  const shown = expanded ? items : items.slice(0, max);
+  const hidden = items.length - shown.length;
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex max-w-xs flex-col gap-2 pointer-events-none">
-      {children}
+    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-50 flex flex-col gap-2 sm:inset-x-auto sm:bottom-4 sm:right-4 sm:w-80">
+      {shown}
+      {items.length > max && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="pointer-events-auto self-end rounded px-2 py-1 text-xs font-medium text-muted underline-offset-2 hover:underline"
+        >
+          {expanded ? 'Show fewer' : `+${hidden} more`}
+        </button>
+      )}
     </div>
   );
 }

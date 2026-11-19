@@ -454,7 +454,58 @@ the browser tab / home screen. No PDF bytes are involved in either change.
 - ☐ Tests: `step4-review.test.tsx` pins both directions (one stable viewer element while `input` is
   unchanged; a rebuilt element when `input` changes) and the full suite stays green. `[AC-6]`
 
-## 22. Sign-off
+## 22. Phone chrome: nav, dialogs, toasts, list rows `[issue #49 · 01 NFR-6, AC-29…AC-31 · HP-9, EC-20]`
+
+Run this one **on a phone** (or a 390 × 844 device profile). It is the first script in the kit with a
+mobile viewport requirement, because NFR-6 only exists after this audit: nothing before #49 asked for a
+phone. Numbers below are what the branch measured at 390 × 844 in Chromium; a real device adds DPR 3,
+the on-screen keyboard and iOS Safari, which the harness could not cover — those are the point of the
+first three boxes.
+
+- ☐ Tab bar, one row: `/home` shows a **56 px** brand band (no wrapped nav) and a fixed bottom bar with
+  `Home · New quote · Quotes · More`, four **98 × 52** tabs, its bottom edge flush with the viewport
+  bottom and clear of the iPhone home indicator. The active route carries `aria-current="page"`, and
+  `/drafts`, `/recent`, `/settings` mark **More** as current. `[NFR-6, AC-29]`
+- ☐ Account panel is reachable: ☰ (44 × 44) opens the panel **fully inside** the viewport (measured
+  x 134 → right 374); its theme and Sign out rows are 44 px. It closes on an outside tap, on Escape and
+  on rotation. Before the fix it opened at x = −107, i.e. 45 % off-screen. `[AC-29]`
+- ☐ More sheet: Drafts / Recent / Settings on 48 px rows with route hints; closes on selection, Close,
+  Escape **and** on the navigation itself (it lives in the layout, so a sheet that ignores the route
+  change would hang open over the next screen). `[EC-20]`
+- ☐ Confirm dialog is a bottom sheet: from `/quotes` Delete (or a Step-3 clause Remove) the sheet rises
+  from the bottom edge (rect [0, 572, 390, 272]), `maxHeight` computes to **675 px = 80 svh** and scrolls
+  inside itself; buttons are **44 px** with a **12 px** gap; `document.activeElement` is the **safe**
+  action ("Cancel" / "Keep it"), never the destructive one; while it is open
+  `body.overflow === 'hidden'` and `overscrollBehavior === 'contain'`; Tab wraps first↔last inside the
+  panel; Escape restores both the page scroll and focus to the control that opened it. `[AC-30, EC-20]`
+- ☐ No single-tap data loss: deleting a saved quote asks first and **names it** (“Red Sea Hotel —
+  ENCM-26-6824” will be removed…); Cancel leaves the snapshot in storage. `/quotes`, `/drafts`, `/recent`
+  and the settings profile library all behave the same way, and no browser `confirm()`/`alert()` appears
+  anywhere. `[AC-31, AC-9]`
+- ☐ Rows aim well: the row body itself opens (48 px), with Duplicate / Download / Remove as 44 px actions
+  underneath — no `px-3 py-1 text-xs` 26 px slivers left in any list, and the 16 px Edit/Delete text links
+  in **My profiles** are gone. `[AC-29]`
+- ☐ Toasts never cover a primary action: they stack full-width **above** the tab bar
+  (measured [12, 718, 366, 62] with a 44 × 44 dismiss) and cap at two with a “+N more” disclosure.
+  `[AC-30]`
+- ☐ No sideways or phantom scroll: `documentElement.scrollWidth === 390` on `/home`, `/new`, `/quotes`,
+  `/drafts`, `/recent`, `/settings`; `/sign-in` and `/sign-up` documents are exactly **844 px** tall (the
+  shells use `dvh`, and long-form pages such as `/settings` may of course scroll their own content).
+  `[AC-31, NFR-6]`
+- ☐ Viewport meta + text sizing: view-source shows
+  `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` (needed for
+  every `env(safe-area-inset-*)` padding to be non-zero), pinch-zoom still works, and focusing an input on
+  iOS does not zoom the page (font-size work continues in #50). `[AC-31]`
+- ☐ The PDF is untouched: `eval:pdfs` **26/26** and `eval:golden` **5 pages @ 0 px** with no re-baseline —
+  `globals.css` and the chrome never reach `src/pdf`. `[AC-2, AC-6, AC-19]`
+- ☐ Tests: static gate `chrome-mobile.test.ts` (16) + jsdom `confirm-dialog` (9), `tab-bar` (8),
+  `account-menu` (5), `quotes-view` (5); full suite green. `[AC-29, AC-30]`
+- ☐ Deferred on purpose (filed as #50, not a #49 failure): sub-16 px **input** text in the wizard and
+  settings, four-line step chips, the Step-4 preview height, and the 26–34 px buttons inside **forms**
+  (auth submit, onboarding Back/Continue, wizard pickers). An inline prose link (“Run setup again”)
+  stays under 44 px by the WCAG 2.5.8 inline exception.
+
+## 23. Sign-off
 
 | Script | Result (Pass/Fail) | Notes / screenshot |
 |--------|--------------------|--------------------|
@@ -479,6 +530,7 @@ the browser tab / home screen. No PDF bytes are involved in either change.
 | 19 Profile library + per-quote picker | | |
 | 20 Brand mark in header/footer banner | | |
 | 21 Preview stability + product icon | | |
+| 22 Phone chrome (nav, dialogs, toasts, lists) | | |
 
 **Accepted for merge when:** all HP scripts pass, no blocking edge-case failure, and the
 fidelity comparison shows only allowed-upgrade differences (03 §6). Any ✗ blocks sign-off —

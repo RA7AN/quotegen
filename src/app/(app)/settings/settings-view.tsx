@@ -14,6 +14,11 @@
  * (#5) upload through the same guards but now persist server-side (in the profile row's
  * own mark columns) rather than only in the ~5 MB localStorage slot. All feedback is
  * inline — no native alert/confirm (AC-9).
+ *
+ * #49 (tap targets only): the action buttons and the saved-profile library rows measured 16–34 px
+ * tall at 390 px — `Edit`/`Delete` were bare `text-xs` underlined links inside a list whose Delete
+ * destroys a letterhead. They are now 44 px controls. The form's field sizing, section spacing and
+ * the 2 640 px page height stay with #50, which owns the settings/wizard form layout.
  */
 
 'use client';
@@ -255,10 +260,10 @@ export function SettingsView() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Company profile</h1>
         <div className="flex gap-2">
-          <button type="button" onClick={reset} className="rounded border border-neutral-400 px-3 py-1.5 text-sm hover:bg-neutral-100">
+          <button type="button" onClick={reset} className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-3 text-sm hover:bg-neutral-100">
             Reset to factory defaults
           </button>
-          <button type="button" onClick={save} className="rounded bg-black px-4 py-1.5 text-sm font-semibold text-white hover:bg-neutral-800">
+          <button type="button" onClick={save} className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-4 text-sm font-semibold text-white hover:bg-neutral-800">
             Save
           </button>
         </div>
@@ -294,7 +299,7 @@ export function SettingsView() {
           <button
             type="button"
             onClick={() => void saveAsNew()}
-            className="rounded bg-black px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+            className="inline-flex min-h-[2.75rem] items-center rounded bg-black px-3 text-sm font-medium text-white hover:bg-neutral-800"
           >
             Save a copy as new
           </button>
@@ -302,7 +307,7 @@ export function SettingsView() {
             <button
               type="button"
               onClick={() => void renameCurrent()}
-              className="rounded border border-neutral-400 px-3 py-1.5 text-sm hover:bg-neutral-100"
+              className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-3 text-sm hover:bg-neutral-100"
             >
               Rename current
             </button>
@@ -323,16 +328,30 @@ export function SettingsView() {
                     <span className="ml-1 text-xs font-medium text-green-700">Editing</span>
                   )}
                 </span>
-                <span className="flex flex-wrap gap-2 text-xs">
-                  <button type="button" onClick={() => void openProfile(s.id)} className="underline hover:text-black">
+                {/* #49: these were bare `text-xs` underlined links (Edit 34×16, Delete 39×16) in a
+                    list that includes a destructive action — now 44 px row controls. */}
+                <span className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void openProfile(s.id)}
+                    className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-3 text-sm hover:bg-neutral-100"
+                  >
                     Edit
                   </button>
                   {!s.isDefault && (
-                    <button type="button" onClick={() => void makeDefault(s.id)} className="underline hover:text-black">
+                    <button
+                      type="button"
+                      onClick={() => void makeDefault(s.id)}
+                      className="inline-flex min-h-[2.75rem] items-center rounded border border-neutral-400 px-3 text-sm hover:bg-neutral-100"
+                    >
                       Set as default
                     </button>
                   )}
-                  <button type="button" onClick={() => setPendingDelete(s)} className="underline text-red-700 hover:text-red-900">
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(s)}
+                    className="inline-flex min-h-[2.75rem] items-center rounded border border-red-300 px-3 text-sm text-red-700 hover:bg-red-50"
+                  >
                     Delete
                   </button>
                 </span>

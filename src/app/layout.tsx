@@ -9,9 +9,14 @@
  * Keeping the root bare means the marketing landing can prerender static (no session
  * read), while the authenticated app routes opt into per-request rendering only where
  * they actually need it.
+ *
+ * #49 adds an explicit `viewport` export so `viewport-fit=cover` is set: without it the
+ * browser reports every `env(safe-area-inset-*)` as 0 and the fixed tab bar / toasts sit
+ * under the iPhone home indicator. Pinch-zoom stays enabled on purpose — it is an
+ * accessibility requirement, and the app's only escape hatch for small chrome text.
  */
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 // Applies the saved (or system) theme before first paint so dark mode never
@@ -25,13 +30,19 @@ export const metadata: Metadata = {
     'Deterministic quote & proforma builder for Encompass Design and Build / Elaf Al Yamamah. Guided wizard, exact PDF output, reusable client & sign-off libraries.',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="min-h-screen bg-white text-black antialiased">{children}</body>
+      <body className="min-h-[100dvh] bg-white text-black antialiased">{children}</body>
     </html>
   );
 }

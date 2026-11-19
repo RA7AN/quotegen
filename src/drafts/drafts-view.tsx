@@ -6,6 +6,10 @@
  * Open (deep-links the wizard at /new?draft=<id>) and Delete (in-app ConfirmDialog,
  * never window.confirm — AC-9). Reads ride the best-effort wizard/library seam, so
  * an unreachable API simply shows the empty state instead of crashing.
+ *
+ * #49 row anatomy: same change as RecentDocuments — the draft title is the whole-row 48 px
+ * Open control and Delete is a 44 px button below it, replacing a 55×26 link beside a 63×26
+ * button. The "+ New quote" CTA is 44 px too.
  */
 
 'use client';
@@ -51,7 +55,7 @@ export function DraftsView() {
         <h1 className="text-xl font-bold">Drafts</h1>
         <Link
           href="/new"
-          className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800"
+          className="inline-flex min-h-[2.75rem] items-center rounded-lg bg-black px-4 text-sm font-semibold text-white hover:bg-neutral-800"
         >
           + New quote
         </Link>
@@ -67,24 +71,27 @@ export function DraftsView() {
       ) : (
         <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200">
           {items.map((d) => (
-            <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{d.name}</p>
-                <p className="text-xs text-muted">
-                  {d.kind === 'proforma' ? 'Proforma' : 'Quotation'} · step {d.step} of 4 · {d.updatedAt.slice(0, 10)}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Link
-                  href={`/new?draft=${encodeURIComponent(d.id)}`}
-                  className="rounded bg-black px-3 py-1 text-xs font-medium text-white hover:bg-neutral-800"
-                >
-                  Open
-                </Link>
+            <li key={d.id} className="px-2 py-2 sm:px-4 sm:py-3">
+              <Link
+                href={`/new?draft=${encodeURIComponent(d.id)}`}
+                aria-label={`Open draft ${d.name}`}
+                className="flex min-h-[3rem] w-full items-center justify-between gap-3 rounded text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-base font-medium">{d.name}</span>
+                  <span className="block truncate text-xs text-muted">
+                    {d.kind === 'proforma' ? 'Proforma' : 'Quotation'} · step {d.step} of 4 · {d.updatedAt.slice(0, 10)}
+                  </span>
+                </span>
+                <span aria-hidden="true" className="shrink-0 text-lg text-muted">
+                  ›
+                </span>
+              </Link>
+              <div className="mt-1 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setPendingDelete(d)}
-                  className="rounded border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50"
+                  className="min-h-[2.75rem] rounded border border-red-300 px-4 text-sm text-red-700 hover:bg-red-50"
                 >
                   Delete
                 </button>
