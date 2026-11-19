@@ -1,7 +1,7 @@
 /**
  * app/(auth)/forgot-password/page.tsx — request a reset link (#9).
  *
- * Client component. Calls Better Auth's forget-password, which emails a reset URL
+ * Client component. Calls Better Auth's request-password-reset, which emails a reset URL
  * (rendered by our Resend sender) pointing at /reset-password?token=… Always shows a
  * neutral success note so the form doesn't leak whether an account exists.
  */
@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
     }
     setBusy(true);
     setError(undefined);
-    const res = (await authClient.forgetPassword({ email, redirectTo: '/reset-password' })) as {
+    const res = (await authClient.requestPasswordReset({ email, redirectTo: '/reset-password' })) as {
       error?: unknown;
     };
     setBusy(false);
